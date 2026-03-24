@@ -144,50 +144,38 @@ export function stringifyCausalJson(doc: CausalJsonDocument): string {
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
 
-/** 給 AI / 人類的簡短規格說明（可貼在提示詞或文件） */
-export const CAUSAL_JSON_AI_GUIDE = `CausalFlow JSON 規格（causalflowVersion: 1）
+/** 給 AI 的快速規格（與 IMPORT_JSON.md 同步維護） */
+export const CAUSAL_JSON_AI_GUIDE = `CausalFlow JSON 快速規格（causalflowVersion: 1）
 
-用途：描述「邏輯／因果」有向圖。節點為概念或變因；邊表示因果或影響關係。
+最重要三件事：
+1) causalflowVersion 必須是數字 1
+2) nodes 與 edges 都必填且為陣列
+3) 每條 edge 的 source/target 都必須引用存在的 node id
 
-頂層欄位：
-- causalflowVersion：固定數字 1（必填）
-- title：可選，圖的標題說明
-- nodes：節點陣列（必填）
-- edges：邊陣列（必填）
-
-節點 nodes[]：
-- id：字串，唯一識別
-- label：顯示文字
-- x, y：畫布座標（數字，像素）
-
-邊 edges[]：
-- id：字串，唯一識別
-- source, target：必須對應既有節點 id；語意為「從 source 指向 target」
-- direction：
-  - "one-way"：單向箭頭（source → target）
-  - "bidirectional"：雙向箭頭
-- polarity：
-  - "positive"：正相關／促進（綠色實線，標 +）
-  - "negative"：負相關／抑制（紅色虛線，標 −）
-  - "neutral"：未指定正負（灰色實線，不顯示 +/− 符號）— 僅表示有連結，尚未標成促進或抑制
-
-範例：
+固定骨架：
 {
   "causalflowVersion": 1,
-  "title": "簡例",
-  "nodes": [
-    { "id": "a", "label": "雨量", "x": 120, "y": 160 },
-    { "id": "b", "label": "河流水位", "x": 420, "y": 160 }
-  ],
-  "edges": [
-    {
-      "id": "e1",
-      "source": "a",
-      "target": "b",
-      "direction": "one-way",
-      "polarity": "positive"
-    }
-  ]
+  "title": "可選",
+  "nodes": [],
+  "edges": []
 }
 
-約束：所有 edge 的 source/target 必須出現在 nodes 的 id 中；id 在各自陣列內建議唯一。`;
+nodes[] 每個元素：
+- id: string（非空白）
+- label: string（非空白）
+- x: number（有限數字）
+- y: number（有限數字）
+
+edges[] 每個元素：
+- id: string（非空白）
+- source: string（必須存在於 nodes[].id）
+- target: string（必須存在於 nodes[].id）
+- direction: "one-way" | "bidirectional"
+- polarity: "positive" | "negative" | "neutral"
+
+可直接給 AI 的輸出要求：
+「請輸出可直接匯入 CausalFlow 的純 JSON（不要 Markdown code block），並嚴格符合以上欄位與枚舉。」
+`;
+
+export const CAUSAL_JSON_NOTEBOOKLM_WARNING =
+  "不要把這份指南直接放進 NotebookLM 來源；請在對話中要求 AI 依本規格產生 JSON，再把 JSON 匯入 CausalFlow。";

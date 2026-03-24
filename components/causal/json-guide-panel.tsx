@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CAUSAL_JSON_AI_GUIDE } from "@/lib/causal-json";
+import {
+  CAUSAL_JSON_AI_GUIDE,
+  CAUSAL_JSON_NOTEBOOKLM_WARNING,
+} from "@/lib/causal-json";
 
 export function JsonGuidePanel() {
   const [open, setOpen] = useState(false);
@@ -52,6 +55,9 @@ export function JsonGuidePanel() {
                   關閉
                 </button>
               </div>
+            </div>
+            <div className="causal-ui border-b border-[var(--causal-node-border)] bg-[var(--causal-edge-neg-muted)]/40 px-3 py-2 text-[11px] leading-relaxed text-[var(--causal-ink)]">
+              {CAUSAL_JSON_NOTEBOOKLM_WARNING}
             </div>
             <pre className="causal-mono flex-1 overflow-auto p-3 text-[11px] leading-relaxed whitespace-pre-wrap text-[var(--causal-ink)]">
               {CAUSAL_JSON_AI_GUIDE}
