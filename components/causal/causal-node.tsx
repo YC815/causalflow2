@@ -18,7 +18,7 @@ export function CausalNode({
   return (
     <div
       className={[
-        "causal-node min-w-[7rem] max-w-[14rem] rounded-lg border-2 px-4 py-3 text-center shadow-sm transition-[box-shadow,transform]",
+        "causal-node min-w-[7rem] max-w-[14rem] rounded-lg border-2 bg-white px-4 py-3 text-center shadow-sm transition-[box-shadow,transform]",
         selected
           ? "border-[var(--causal-accent)] shadow-[0_0_0_3px_var(--causal-accent-muted)]"
           : "border-[var(--causal-node-border)]",
@@ -27,15 +27,15 @@ export function CausalNode({
       <Handle
         type="target"
         position={Position.Left}
-        className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-[var(--causal-paper)]"
+        className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-white"
       />
-      <p className="causal-serif text-[0.95rem] leading-snug text-[var(--causal-ink)]">
+      <p className="causal-ui text-[0.95rem] leading-snug text-[var(--causal-ink)]">
         {data.label}
       </p>
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-[var(--causal-paper)]"
+        className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-white"
       />
     </div>
   );

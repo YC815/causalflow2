@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCallback, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   CausalJsonError,
   parseCausalJson,
@@ -25,6 +26,7 @@ import type { CausalEdgeData } from "./causal-edge";
 import { CausalEdge } from "./causal-edge";
 import type { CausalNodeData } from "./causal-node";
 import { CausalNode } from "./causal-node";
+import { layoutCausalNodes } from "@/lib/causal-auto-layout";
 import {
   documentToFlow,
   flowToDocument,
@@ -46,7 +48,7 @@ function FlowCanvas({
   const initial = documentToFlow(SAMPLE_CAUSAL_DOCUMENT);
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, fitView } = useReactFlow();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const edgeSeq = useRef(0);
   const formId = useId();
@@ -96,6 +98,18 @@ function FlowCanvas({
     },
     [],
   );
+
+  const autoLayout = useCallback(() => {
+    flushSync(() => {
+      setNodes((ns) =>
+        layoutCausalNodes(
+          ns as Node<CausalNodeData>[],
+          edges as Edge<CausalEdgeData>[],
+        ),
+      );
+    });
+    fitView({ padding: 0.2, duration: 280 });
+  }, [edges, fitView, setNodes]);
 
   const addNode = useCallback(() => {
     const id = `n-${Date.now().toString(36)}`;
@@ -248,6 +262,13 @@ function FlowCanvas({
             </button>
             <button
               type="button"
+              onClick={autoLayout}
+              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
+            >
+              一鍵排版
+            </button>
+            <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
             >
@@ -333,7 +354,7 @@ function FlowCanvas({
                   value={selectedNode.data.label}
                   onChange={(e) => updateSelectedNodeLabel(e.target.value)}
                   rows={3}
-                  className="causal-serif mt-2 w-full resize-y rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2 py-1.5 text-sm text-[var(--causal-ink)]"
+                  className="causal-ui mt-2 w-full resize-y rounded-lg border border-[var(--causal-node-border)] bg-white px-2 py-1.5 text-sm text-[var(--causal-ink)]"
                 />
               </div>
             )}
