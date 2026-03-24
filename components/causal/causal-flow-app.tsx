@@ -17,6 +17,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
+  CAUSAL_JSON_AI_GUIDE,
   CausalJsonError,
   type CausalPolarity,
   parseCausalJson,
@@ -122,6 +123,32 @@ function IcoSliders({ className }: { className?: string }) {
   );
 }
 
+function toLineCol(text: string, index: number): { line: number; column: number } {
+  const safe = Math.max(0, Math.min(index, text.length));
+  let line = 1;
+  let column = 1;
+  for (let i = 0; i < safe; i += 1) {
+    if (text[i] === "\n") {
+      line += 1;
+      column = 1;
+    } else {
+      column += 1;
+    }
+  }
+  return { line, column };
+}
+
+function getJsonSyntaxErrorDetail(raw: string, err: unknown): string | null {
+  if (!(err instanceof SyntaxError)) return null;
+  const message = err.message || "JSON 語法錯誤";
+  const match = /position\s+(\d+)/i.exec(message);
+  if (!match) return message;
+  const pos = Number(match[1]);
+  if (!Number.isFinite(pos)) return message;
+  const { line, column } = toLineCol(raw, pos);
+  return `JSON 語法錯誤：第 ${line} 行，第 ${column} 列（字元位置 ${pos}）`;
+}
+
 const shellBtn =
   "causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2 py-1.5 text-xs text-[var(--causal-ink)] transition hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50";
 const shellBtnPrimary =
@@ -154,6 +181,7 @@ function FlowCanvas({
   const [exportingImage, setExportingImage] = useState(false);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [jsonEditorText, setJsonEditorText] = useState("");
+  const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
   const [leftBarCollapsed, setLeftBarCollapsed] = useState(false);
   const [toolsBarCollapsed, setToolsBarCollapsed] = useState(false);
   const [layoutDirection, setLayoutDirection] =
@@ -327,6 +355,7 @@ function FlowCanvas({
       title.trim() || undefined,
     );
     setJsonEditorText(stringifyCausalJson(doc));
+    setJsonEditorError(null);
     setJsonEditorOpen(true);
   }, [edges, nodes, title]);
 
@@ -339,10 +368,14 @@ function FlowCanvas({
       setTitle(doc.title ?? "");
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
+      setJsonEditorError(null);
       setJsonEditorOpen(false);
       showToast("已套用 JSON 變更");
     } catch (err) {
-      const msg = err instanceof CausalJsonError ? err.message : "JSON 套用失敗";
+      const msg =
+        getJsonSyntaxErrorDetail(jsonEditorText, err) ??
+        (err instanceof CausalJsonError ? err.message : "JSON 套用失敗");
+      setJsonEditorError(msg);
       showToast(msg);
     }
   }, [jsonEditorText, setEdges, setNodes, setTitle, showToast]);
@@ -351,13 +384,35 @@ function FlowCanvas({
     try {
       const doc = parseCausalJson(jsonEditorText);
       setJsonEditorText(stringifyCausalJson(doc));
+      setJsonEditorError(null);
       showToast("已自動格式化 JSON");
     } catch (err) {
       const msg =
-        err instanceof CausalJsonError ? err.message : "JSON 格式化失敗";
+        getJsonSyntaxErrorDetail(jsonEditorText, err) ??
+        (err instanceof CausalJsonError ? err.message : "JSON 格式化失敗");
+      setJsonEditorError(msg);
       showToast(msg);
     }
   }, [jsonEditorText, showToast]);
+
+  const copyErrorWithJsonGuide = useCallback(async () => {
+    if (!jsonEditorError) return;
+    const payload = [
+      "請協助修復以下 CausalFlow JSON 錯誤：",
+      `錯誤訊息：${jsonEditorError}`,
+      "",
+      CAUSAL_JSON_AI_GUIDE,
+      "",
+      "目前 JSON 內容：",
+      jsonEditorText,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(payload);
+      showToast("已複製錯誤訊息與 JSON 規則");
+    } catch {
+      showToast("複製失敗，請手動複製錯誤訊息與 JSON");
+    }
+  }, [jsonEditorError, jsonEditorText, showToast]);
 
   useEffect(() => {
     if (!jsonEditorOpen) return;
@@ -885,10 +940,28 @@ function FlowCanvas({
             <div className="min-h-0 flex-1 p-3">
               <textarea
                 value={jsonEditorText}
-                onChange={(e) => setJsonEditorText(e.target.value)}
+                onChange={(e) => {
+                  setJsonEditorText(e.target.value);
+                  if (jsonEditorError) setJsonEditorError(null);
+                }}
                 className="causal-mono h-full w-full resize-none rounded-lg border border-[var(--causal-node-border)] bg-white px-3 py-2 text-xs leading-6 text-[var(--causal-ink)]"
                 spellCheck={false}
               />
+              {jsonEditorError && (
+                <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-700">
+                  <p>{jsonEditorError}</p>
+                  <p className="mt-1 text-[11px] text-red-600">
+                    若不確定如何修復，可將錯誤訊息貼給 AI。
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void copyErrorWithJsonGuide()}
+                    className="mt-2 rounded-md border border-red-300 bg-white px-2 py-1 text-[11px] text-red-700 transition hover:bg-red-100"
+                  >
+                    複製錯誤訊息＋JSON 規則給 AI
+                  </button>
+                </div>
+              )}
             </div>
             <footer className="flex flex-wrap justify-end gap-2 border-t border-[var(--causal-node-border)] px-3 py-2.5">
               <button
