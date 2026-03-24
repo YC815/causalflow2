@@ -1,16 +1,25 @@
 "use client";
 
 import { BaseEdge, EdgeProps, getBezierPath } from "@xyflow/react";
+import type { CausalPolarity } from "@/lib/causal-json";
 
 export type CausalEdgeData = {
   bidirectional: boolean;
-  polarity: "positive" | "negative";
+  polarity: CausalPolarity;
 };
 
-function strokeForPolarity(polarity: CausalEdgeData["polarity"]): string {
-  return polarity === "negative"
-    ? "var(--causal-edge-neg)"
-    : "var(--causal-edge-pos)";
+function strokeForPolarity(polarity: CausalPolarity): string {
+  if (polarity === "negative") return "var(--causal-edge-neg)";
+  if (polarity === "neutral") return "var(--causal-edge-neutral)";
+  return "var(--causal-edge-pos)";
+}
+
+function normalizePolarity(
+  data: { polarity?: unknown } | undefined | null,
+): CausalPolarity {
+  const p = data?.polarity;
+  if (p === "negative" || p === "neutral") return p;
+  return "positive";
 }
 
 export function CausalEdge({
@@ -26,8 +35,7 @@ export function CausalEdge({
   data,
   selected,
 }: EdgeProps) {
-  const polarity: CausalEdgeData["polarity"] =
-    data?.polarity === "negative" ? "negative" : "positive";
+  const polarity = normalizePolarity(data);
   const bidirectional = Boolean(data?.bidirectional);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -40,7 +48,8 @@ export function CausalEdge({
 
   const stroke = strokeForPolarity(polarity);
   const dash = polarity === "negative" ? "7 5" : undefined;
-  const sign = polarity === "negative" ? "-" : "+";
+  const sign =
+    polarity === "negative" ? "-" : polarity === "neutral" ? "?" : "+";
 
   return (
     <BaseEdge

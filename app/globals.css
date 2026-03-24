@@ -15,6 +15,8 @@
   --causal-edge-neg: #9a3d32;
   --causal-edge-pos-muted: rgba(26, 92, 74, 0.2);
   --causal-edge-neg-muted: rgba(154, 61, 50, 0.18);
+  --causal-edge-neutral: #5c564c;
+  --causal-edge-neutral-muted: rgba(92, 86, 76, 0.22);
   --causal-dot: rgba(60, 52, 40, 0.11);
 }
 

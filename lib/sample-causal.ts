@@ -29,7 +29,7 @@ export const SAMPLE_CAUSAL_DOCUMENT: CausalJsonDocument = {
       source: "traffic",
       target: "mood",
       direction: "bidirectional",
-      polarity: "negative",
+      polarity: "neutral",
     },
   ],
 };

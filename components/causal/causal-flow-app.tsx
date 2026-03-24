@@ -18,6 +18,7 @@ import { useCallback, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   CausalJsonError,
+  type CausalPolarity,
   parseCausalJson,
   stringifyCausalJson,
 } from "@/lib/causal-json";
@@ -69,9 +70,8 @@ function FlowCanvas({
   const formId = useId();
 
   const [defaultBidirectional, setDefaultBidirectional] = useState(false);
-  const [defaultPolarity, setDefaultPolarity] = useState<
-    "positive" | "negative"
-  >("positive");
+  const [defaultPolarity, setDefaultPolarity] =
+    useState<CausalPolarity>("positive");
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -445,6 +445,17 @@ function FlowCanvas({
               >
                 負相關
               </button>
+              <button
+                type="button"
+                onClick={() => setDefaultPolarity("neutral")}
+                className={`causal-ui rounded-md px-2 py-1 text-xs ${
+                  defaultPolarity === "neutral"
+                    ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
+                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                }`}
+              >
+                未指定
+              </button>
             </div>
 
             {selectedNode && (
@@ -489,19 +500,38 @@ function FlowCanvas({
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      updateSelectedEdge({
-                        polarity:
-                          selectedEdge.data?.polarity === "negative"
-                            ? "positive"
-                            : "negative",
-                      })
-                    }
-                    className="causal-ui rounded-md bg-[var(--causal-paper-2)] px-2 py-1 text-xs text-[var(--causal-ink)]"
+                    onClick={() => updateSelectedEdge({ polarity: "positive" })}
+                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
+                      (selectedEdge.data?.polarity ?? "positive") ===
+                      "positive"
+                        ? "bg-[var(--causal-edge-pos-muted)] text-[var(--causal-ink)]"
+                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                    }`}
                   >
-                    {(selectedEdge.data?.polarity ?? "positive") === "negative"
-                      ? "改為正相關"
-                      : "改為負相關"}
+                    正相關
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedEdge({ polarity: "negative" })}
+                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
+                      (selectedEdge.data?.polarity ?? "positive") ===
+                      "negative"
+                        ? "bg-[var(--causal-edge-neg-muted)] text-[var(--causal-ink)]"
+                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                    }`}
+                  >
+                    負相關
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSelectedEdge({ polarity: "neutral" })}
+                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
+                      (selectedEdge.data?.polarity ?? "positive") === "neutral"
+                        ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
+                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                    }`}
+                  >
+                    未指定
                   </button>
                 </div>
               </div>

@@ -12,7 +12,9 @@ function marker(polarity: CausalEdgeData["polarity"]) {
   const color =
     polarity === "negative"
       ? "var(--causal-edge-neg)"
-      : "var(--causal-edge-pos)";
+      : polarity === "neutral"
+        ? "var(--causal-edge-neutral)"
+        : "var(--causal-edge-pos)";
   return {
     type: MarkerType.ArrowClosed as const,
     width: 22,

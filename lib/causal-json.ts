@@ -6,7 +6,8 @@
 export const CAUSAL_JSON_VERSION = 1 as const;
 
 export type CausalDirection = "one-way" | "bidirectional";
-export type CausalPolarity = "positive" | "negative";
+/** 正／負相關，或「未指定」（僅表示有連結、尚未標正負） */
+export type CausalPolarity = "positive" | "negative" | "neutral";
 
 export type CausalJsonNode = {
   id: string;
@@ -101,9 +102,13 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
       );
     }
     const polarity = asString(e.polarity, `edges[${i}].polarity`);
-    if (polarity !== "positive" && polarity !== "negative") {
+    if (
+      polarity !== "positive" &&
+      polarity !== "negative" &&
+      polarity !== "neutral"
+    ) {
       throw new CausalJsonError(
-        `edges[${i}].polarity 必須為 "positive" 或 "negative"`,
+        `edges[${i}].polarity 必須為 "positive"、"negative" 或 "neutral"`,
       );
     }
     const source = asString(e.source, `edges[${i}].source`);
@@ -162,8 +167,9 @@ export const CAUSAL_JSON_AI_GUIDE = `CausalFlow JSON 規格（causalflowVersion:
   - "one-way"：單向箭頭（source → target）
   - "bidirectional"：雙向箭頭
 - polarity：
-  - "positive"：正相關／促進（實線）
-  - "negative"：負相關／抑制（虛線）
+  - "positive"：正相關／促進（綠色實線，標 +）
+  - "negative"：負相關／抑制（紅色虛線，標 −）
+  - "neutral"：未指定正負（灰色實線，標 ?）— 僅表示有連結，尚未標成促進或抑制
 
 範例：
 {
