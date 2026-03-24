@@ -14,7 +14,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   CausalJsonError,
@@ -52,6 +52,81 @@ import {
 const nodeTypes = { causal: CausalNode };
 const edgeTypes = { causal: CausalEdge };
 
+const LS_LEFT = "causalflow-ui-left-collapsed";
+const LS_TOOLS = "causalflow-ui-tools-collapsed";
+
+function IcoChevronDown({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function IcoChevronUp({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m18 15-6-6-6 6" />
+    </svg>
+  );
+}
+
+function IcoPlus({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function IcoSliders({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M9 8h6M15 16h6" />
+    </svg>
+  );
+}
+
+const shellBtn =
+  "causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2 py-1.5 text-xs text-[var(--causal-ink)] transition hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50";
+const shellBtnPrimary =
+  "causal-ui rounded-lg bg-[var(--causal-accent)] px-2 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
+
 function FlowCanvas({
   title,
   setTitle,
@@ -77,8 +152,35 @@ function FlowCanvas({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exportingImage, setExportingImage] = useState(false);
+  const [leftBarCollapsed, setLeftBarCollapsed] = useState(false);
+  const [toolsBarCollapsed, setToolsBarCollapsed] = useState(true);
   const [layoutDirection, setLayoutDirection] =
     useState<CausalLayoutDirection>("LR");
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(LS_LEFT) === "1") setLeftBarCollapsed(true);
+      if (localStorage.getItem(LS_TOOLS) === "0") setToolsBarCollapsed(false);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_LEFT, leftBarCollapsed ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [leftBarCollapsed]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_TOOLS, toolsBarCollapsed ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [toolsBarCollapsed]);
   const flowOrientation: CausalFlowOrientation =
     layoutDirection === "LR" ? "horizontal" : "vertical";
 
@@ -217,7 +319,7 @@ function FlowCanvas({
   }, [edges, nodes, showToast, title]);
 
   const exportViewportImage = useCallback(
-    async (kind: "png" | "pdf") => {
+    async (kind: "png" | "pdf", pdfOrientation?: "portrait" | "landscape") => {
       const viewportEl = flowWrapRef.current?.querySelector(
         ".react-flow__viewport",
       ) as HTMLElement | null;
@@ -240,8 +342,11 @@ function FlowCanvas({
           downloadPngFromDataUrl(dataUrl, `${base}.png`);
           showToast("已下載 PNG");
         } else {
-          await downloadPdfFromPngDataUrl(dataUrl, `${base}.pdf`);
-          showToast("已下載 PDF");
+          const o = pdfOrientation ?? "portrait";
+          await downloadPdfFromPngDataUrl(dataUrl, `${base}.pdf`, {
+            orientation: o,
+          });
+          showToast(o === "portrait" ? "已下載 PDF（直式 A4）" : "已下載 PDF（橫式 A4）");
         }
       } catch {
         showToast(kind === "png" ? "PNG 匯出失敗" : "PDF 匯出失敗");
@@ -309,234 +414,342 @@ function FlowCanvas({
       </div>
       </CausalOrientationProvider>
 
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 p-4">
-        <div className="pointer-events-auto max-w-md rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 px-4 py-3 shadow-md backdrop-blur-sm">
-          <h1 className="causal-display text-xl tracking-tight text-[var(--causal-ink)]">
-            CausalFlow
-          </h1>
-          <p className="causal-ui mt-1 text-xs text-[var(--causal-ink-muted)]">
-            邏輯因果圖 · 拖曳連線 · 匯入／匯出 JSON、PNG、PDF
-          </p>
-          <label htmlFor={`${formId}-title`} className="sr-only">
-            圖標題
-          </label>
-          <input
-            id={`${formId}-title`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="圖標題（可選，會寫入 JSON）"
-            className="causal-ui mt-3 w-full rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] placeholder:text-[var(--causal-ink-muted)]"
-          />
+      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
+        <div className="pointer-events-auto min-w-0">
+          {leftBarCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setLeftBarCollapsed(false)}
+              className="causal-ui group flex max-w-full items-center gap-2 rounded-full border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 py-2 pl-3 pr-3 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md transition hover:border-[var(--causal-accent)] hover:shadow-lg"
+              aria-expanded={false}
+            >
+              <span className="causal-display truncate text-sm font-semibold tracking-tight text-[var(--causal-ink)]">
+                CausalFlow
+              </span>
+              <IcoChevronDown className="h-4 w-4 shrink-0 text-[var(--causal-ink-muted)] transition group-hover:text-[var(--causal-accent)]" />
+            </button>
+          ) : (
+            <div className="relative max-w-[min(100%,18rem)] rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 p-3 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <h1 className="causal-display text-lg leading-tight tracking-tight text-[var(--causal-ink)]">
+                    CausalFlow
+                  </h1>
+                  <p className="causal-ui mt-1 text-[11px] leading-snug text-[var(--causal-ink-muted)]">
+                    因果圖 · 拖曳連線 · JSON／PNG／PDF
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLeftBarCollapsed(true)}
+                  className="causal-ui -mr-0.5 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]"
+                  aria-label="收合標題區"
+                  title="收合"
+                >
+                  <IcoChevronUp className="h-4 w-4" />
+                </button>
+              </div>
+              <label htmlFor={`${formId}-title`} className="sr-only">
+                圖標題
+              </label>
+              <input
+                id={`${formId}-title`}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="圖標題（可選）"
+                className="causal-ui mt-2.5 w-full rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2.5 py-1.5 text-sm text-[var(--causal-ink)] placeholder:text-[var(--causal-ink-muted)]"
+              />
+            </div>
+          )}
         </div>
 
-        <div className="pointer-events-auto flex flex-col items-end gap-2 sm:flex-row sm:items-start">
-          <div className="flex flex-wrap justify-end gap-2 rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 p-2 shadow-md backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={addNode}
-              className="causal-ui rounded-lg bg-[var(--causal-accent)] px-3 py-2 text-sm text-white hover:opacity-90"
-            >
-              新增節點
-            </button>
-            <button
-              type="button"
-              onClick={autoLayout}
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
-            >
-              一鍵排版
-            </button>
-            <button
-              type="button"
-              onClick={toggleLayoutOrientation}
-              title={
-                layoutDirection === "LR"
-                  ? "橫式：連接點在卡片左右側。點擊改為直式（連接點在上下方）並重新排版"
-                  : "直式：連接點在卡片上下方。點擊改為橫式（連接點在左右側）並重新排版"
-              }
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
-            >
-              {layoutDirection === "LR" ? "切為直式" : "切為橫式"}
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
-            >
-              匯入 JSON
-            </button>
-            <button
-              type="button"
-              onClick={exportJson}
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
-            >
-              匯出 JSON
-            </button>
-            <button
-              type="button"
-              disabled={exportingImage}
-              onClick={() => void exportViewportImage("png")}
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              匯出 PNG
-            </button>
-            <button
-              type="button"
-              disabled={exportingImage}
-              onClick={() => void exportViewportImage("pdf")}
-              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              匯出 PDF
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+          />
 
-          <aside className="w-[min(100%,18rem)] rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 p-3 shadow-md backdrop-blur-sm">
-            <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
-              新連線預設
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
+          {toolsBarCollapsed ? (
+            <div className="flex flex-col gap-1.5 rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 p-1.5 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md">
               <button
                 type="button"
-                onClick={() => setDefaultBidirectional(false)}
-                className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                  !defaultBidirectional
-                    ? "bg-[var(--causal-accent-muted)] text-[var(--causal-ink)]"
-                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
-                }`}
+                onClick={addNode}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--causal-accent)] text-white shadow-sm transition hover:opacity-90"
+                title="新增節點"
+                aria-label="新增節點"
               >
-                單向
+                <IcoPlus className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                onClick={() => setDefaultBidirectional(true)}
-                className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                  defaultBidirectional
-                    ? "bg-[var(--causal-accent-muted)] text-[var(--causal-ink)]"
-                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
-                }`}
+                onClick={() => setToolsBarCollapsed(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] text-[var(--causal-ink)] transition hover:bg-black/[0.05]"
+                title="展開工具與設定"
+                aria-expanded={false}
+                aria-label="展開工具與設定"
               >
-                雙向
-              </button>
-              <button
-                type="button"
-                onClick={() => setDefaultPolarity("positive")}
-                className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                  defaultPolarity === "positive"
-                    ? "bg-[var(--causal-edge-pos-muted)] text-[var(--causal-ink)]"
-                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
-                }`}
-              >
-                正相關
-              </button>
-              <button
-                type="button"
-                onClick={() => setDefaultPolarity("negative")}
-                className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                  defaultPolarity === "negative"
-                    ? "bg-[var(--causal-edge-neg-muted)] text-[var(--causal-ink)]"
-                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
-                }`}
-              >
-                負相關
-              </button>
-              <button
-                type="button"
-                onClick={() => setDefaultPolarity("neutral")}
-                className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                  defaultPolarity === "neutral"
-                    ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
-                    : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
-                }`}
-              >
-                未指定
+                <IcoSliders className="h-5 w-5" />
               </button>
             </div>
-
-            {selectedNode && (
-              <div className="mt-3 border-t border-[var(--causal-node-border)] pt-3">
-                <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
-                  選中節點
-                </p>
-                <label htmlFor={`${formId}-nlabel`} className="sr-only">
-                  節點文字
-                </label>
-                <textarea
-                  id={`${formId}-nlabel`}
-                  value={selectedNode.data.label}
-                  onChange={(e) => updateSelectedNodeLabel(e.target.value)}
-                  rows={3}
-                  className="causal-ui mt-2 w-full resize-y rounded-lg border border-[var(--causal-node-border)] bg-white px-2 py-1.5 text-sm text-[var(--causal-ink)]"
-                />
+          ) : (
+            <aside className="w-[min(calc(100vw-1.5rem),17.5rem)] rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2 border-b border-[var(--causal-node-border)] px-3 py-2">
+                <span className="causal-ui text-xs font-medium tracking-wide text-[var(--causal-ink-muted)]">
+                  工具
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setToolsBarCollapsed(true)}
+                  className="causal-ui flex h-8 w-8 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]"
+                  aria-label="收合工具列"
+                  title="收合"
+                >
+                  <IcoChevronUp className="h-4 w-4" />
+                </button>
               </div>
-            )}
 
-            {selectedEdge && (
-              <div className="mt-3 border-t border-[var(--causal-node-border)] pt-3">
-                <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
-                  選中連線
-                </p>
-                <p className="causal-mono mt-1 text-[10px] text-[var(--causal-ink-muted)]">
-                  {selectedEdge.source} → {selectedEdge.target}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
+              <div className="max-h-[min(70vh,calc(100dvh-8rem))] space-y-2.5 overflow-y-auto p-3">
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
-                    onClick={() =>
-                      updateSelectedEdge({
-                        bidirectional: !selectedEdge.data?.bidirectional,
-                      })
+                    onClick={addNode}
+                    className={shellBtnPrimary}
+                  >
+                    新增節點
+                  </button>
+                  <button
+                    type="button"
+                    onClick={autoLayout}
+                    className={shellBtn}
+                  >
+                    一鍵排版
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleLayoutOrientation}
+                    title={
+                      layoutDirection === "LR"
+                        ? "橫式版面：改為直式並重新排版"
+                        : "直式版面：改為橫式並重新排版"
                     }
-                    className="causal-ui rounded-md bg-[var(--causal-paper-2)] px-2 py-1 text-xs text-[var(--causal-ink)]"
+                    className={shellBtn}
                   >
-                    {(selectedEdge.data?.bidirectional ?? false)
-                      ? "改為單向"
-                      : "改為雙向"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSelectedEdge({ polarity: "positive" })}
-                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                      (selectedEdge.data?.polarity ?? "positive") ===
-                      "positive"
-                        ? "bg-[var(--causal-edge-pos-muted)] text-[var(--causal-ink)]"
-                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
-                    }`}
-                  >
-                    正相關
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSelectedEdge({ polarity: "negative" })}
-                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                      (selectedEdge.data?.polarity ?? "positive") ===
-                      "negative"
-                        ? "bg-[var(--causal-edge-neg-muted)] text-[var(--causal-ink)]"
-                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
-                    }`}
-                  >
-                    負相關
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => updateSelectedEdge({ polarity: "neutral" })}
-                    className={`causal-ui rounded-md px-2 py-1 text-xs ${
-                      (selectedEdge.data?.polarity ?? "positive") === "neutral"
-                        ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
-                        : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
-                    }`}
-                  >
-                    未指定
+                    {layoutDirection === "LR" ? "切直式" : "切橫式"}
                   </button>
                 </div>
+
+                <details className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none">
+                    <span>JSON 檔案</span>
+                    <IcoChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
+                  </summary>
+                  <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={shellBtn}
+                    >
+                      匯入
+                    </button>
+                    <button
+                      type="button"
+                      onClick={exportJson}
+                      className={shellBtn}
+                    >
+                      匯出
+                    </button>
+                  </div>
+                </details>
+
+                <details className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none">
+                    <span>匯出圖片（A4 PDF）</span>
+                    <IcoChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
+                  </summary>
+                  <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
+                    <button
+                      type="button"
+                      disabled={exportingImage}
+                      onClick={() => void exportViewportImage("png")}
+                      className={shellBtn}
+                    >
+                      PNG
+                    </button>
+                    <button
+                      type="button"
+                      disabled={exportingImage}
+                      onClick={() => void exportViewportImage("pdf", "portrait")}
+                      className={shellBtn}
+                    >
+                      PDF 直
+                    </button>
+                    <button
+                      type="button"
+                      disabled={exportingImage}
+                      onClick={() =>
+                        void exportViewportImage("pdf", "landscape")
+                      }
+                      className={shellBtn}
+                    >
+                      PDF 橫
+                    </button>
+                  </div>
+                </details>
+
+                <div>
+                  <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
+                    新連線預設
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setDefaultBidirectional(false)}
+                      className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                        !defaultBidirectional
+                          ? "bg-[var(--causal-accent-muted)] text-[var(--causal-ink)]"
+                          : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                      }`}
+                    >
+                      單向
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDefaultBidirectional(true)}
+                      className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                        defaultBidirectional
+                          ? "bg-[var(--causal-accent-muted)] text-[var(--causal-ink)]"
+                          : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                      }`}
+                    >
+                      雙向
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDefaultPolarity("positive")}
+                      className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                        defaultPolarity === "positive"
+                          ? "bg-[var(--causal-edge-pos-muted)] text-[var(--causal-ink)]"
+                          : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                      }`}
+                    >
+                      正
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDefaultPolarity("negative")}
+                      className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                        defaultPolarity === "negative"
+                          ? "bg-[var(--causal-edge-neg-muted)] text-[var(--causal-ink)]"
+                          : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                      }`}
+                    >
+                      負
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDefaultPolarity("neutral")}
+                      className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                        defaultPolarity === "neutral"
+                          ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
+                          : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+                      }`}
+                    >
+                      未指定
+                    </button>
+                  </div>
+                </div>
+
+                {selectedNode && (
+                  <div className="border-t border-[var(--causal-node-border)] pt-2.5">
+                    <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
+                      選中節點
+                    </p>
+                    <label htmlFor={`${formId}-nlabel`} className="sr-only">
+                      節點文字
+                    </label>
+                    <textarea
+                      id={`${formId}-nlabel`}
+                      value={selectedNode.data.label}
+                      onChange={(e) => updateSelectedNodeLabel(e.target.value)}
+                      rows={3}
+                      className="causal-ui mt-1.5 w-full resize-y rounded-lg border border-[var(--causal-node-border)] bg-white px-2 py-1.5 text-sm text-[var(--causal-ink)]"
+                    />
+                  </div>
+                )}
+
+                {selectedEdge && (
+                  <div className="border-t border-[var(--causal-node-border)] pt-2.5">
+                    <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
+                      選中連線
+                    </p>
+                    <p className="causal-mono mt-1 break-all text-[10px] text-[var(--causal-ink-muted)]">
+                      {selectedEdge.source} → {selectedEdge.target}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSelectedEdge({
+                            bidirectional: !selectedEdge.data?.bidirectional,
+                          })
+                        }
+                        className="causal-ui rounded-md bg-[var(--causal-paper-2)] px-2 py-1 text-[11px] text-[var(--causal-ink)]"
+                      >
+                        {(selectedEdge.data?.bidirectional ?? false)
+                          ? "改單向"
+                          : "改雙向"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSelectedEdge({ polarity: "positive" })
+                        }
+                        className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                          (selectedEdge.data?.polarity ?? "positive") ===
+                          "positive"
+                            ? "bg-[var(--causal-edge-pos-muted)] text-[var(--causal-ink)]"
+                            : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                        }`}
+                      >
+                        正
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSelectedEdge({ polarity: "negative" })
+                        }
+                        className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                          (selectedEdge.data?.polarity ?? "positive") ===
+                          "negative"
+                            ? "bg-[var(--causal-edge-neg-muted)] text-[var(--causal-ink)]"
+                            : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                        }`}
+                      >
+                        負
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSelectedEdge({ polarity: "neutral" })
+                        }
+                        className={`causal-ui rounded-md px-2 py-1 text-[11px] ${
+                          (selectedEdge.data?.polarity ?? "positive") ===
+                          "neutral"
+                            ? "bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-ink)]"
+                            : "bg-[var(--causal-paper-2)] text-[var(--causal-ink)]"
+                        }`}
+                      >
+                        未指定
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </aside>
+            </aside>
+          )}
         </div>
       </header>
 

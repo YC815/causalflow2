@@ -24,9 +24,10 @@ export function JsonGuidePanel() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="causal-ui rounded-full border border-[var(--causal-node-border)] bg-[var(--causal-paper)] px-4 py-2 text-sm text-[var(--causal-ink)] shadow-md transition hover:border-[var(--causal-accent)]"
+            className="causal-ui rounded-full border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 px-3 py-2 text-xs text-[var(--causal-ink)] shadow-md ring-1 ring-black/[0.04] backdrop-blur-md transition hover:border-[var(--causal-accent)] hover:shadow-lg"
+            title="開啟 JSON／AI 格式說明"
           >
-            JSON／AI 使用指南
+            JSON／AI 指南
           </button>
         ) : (
           <div className="flex max-h-[min(70vh,32rem)] w-[min(calc(100vw-2rem),22rem)] flex-col overflow-hidden rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)] shadow-xl">

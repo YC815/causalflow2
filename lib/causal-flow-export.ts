@@ -32,9 +32,13 @@ export function downloadPngFromDataUrl(dataUrl: string, filename: string) {
   downloadDataUrl(dataUrl, filename);
 }
 
+export type PdfPageOrientation = "portrait" | "landscape";
+
+/** A4 頁面，依版面縮放置中圖片（維持比例）。 */
 export function downloadPdfFromPngDataUrl(
   dataUrl: string,
   filename: string,
+  options: { orientation: PdfPageOrientation },
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -42,12 +46,31 @@ export function downloadPdfFromPngDataUrl(
       try {
         const wPx = img.naturalWidth;
         const hPx = img.naturalHeight;
+        const { orientation } = options;
         const pdf = new jsPDF({
-          orientation: wPx >= hPx ? "landscape" : "portrait",
-          unit: "px",
-          format: [wPx, hPx],
+          orientation,
+          unit: "mm",
+          format: "a4",
         });
-        pdf.addImage(dataUrl, "PNG", 0, 0, wPx, hPx, undefined, "FAST");
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const marginMm = 10;
+        const innerW = pageW - 2 * marginMm;
+        const innerH = pageH - 2 * marginMm;
+        const imgRatio = wPx / hPx;
+        const boxRatio = innerW / innerH;
+        let drawW: number;
+        let drawH: number;
+        if (imgRatio > boxRatio) {
+          drawW = innerW;
+          drawH = innerW / imgRatio;
+        } else {
+          drawH = innerH;
+          drawW = innerH * imgRatio;
+        }
+        const x = marginMm + (innerW - drawW) / 2;
+        const y = marginMm + (innerH - drawH) / 2;
+        pdf.addImage(dataUrl, "PNG", x, y, drawW, drawH, undefined, "FAST");
         pdf.save(filename);
         resolve();
       } catch (e) {
