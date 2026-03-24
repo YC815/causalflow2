@@ -152,8 +152,10 @@ function FlowCanvas({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exportingImage, setExportingImage] = useState(false);
+  const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
+  const [jsonEditorText, setJsonEditorText] = useState("");
   const [leftBarCollapsed, setLeftBarCollapsed] = useState(false);
-  const [toolsBarCollapsed, setToolsBarCollapsed] = useState(true);
+  const [toolsBarCollapsed, setToolsBarCollapsed] = useState(false);
   const [layoutDirection, setLayoutDirection] =
     useState<CausalLayoutDirection>("LR");
 
@@ -317,6 +319,54 @@ function FlowCanvas({
     URL.revokeObjectURL(a.href);
     showToast("已下載 causalflow.json");
   }, [edges, nodes, showToast, title]);
+
+  const openJsonEditor = useCallback(() => {
+    const doc = flowToDocument(
+      nodes as Node<CausalNodeData>[],
+      edges as Edge<CausalEdgeData>[],
+      title.trim() || undefined,
+    );
+    setJsonEditorText(stringifyCausalJson(doc));
+    setJsonEditorOpen(true);
+  }, [edges, nodes, title]);
+
+  const applyJsonEditor = useCallback(() => {
+    try {
+      const doc = parseCausalJson(jsonEditorText);
+      const { nodes: nn, edges: ee } = documentToFlow(doc);
+      setNodes(nn);
+      setEdges(ee);
+      setTitle(doc.title ?? "");
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      setJsonEditorOpen(false);
+      showToast("已套用 JSON 變更");
+    } catch (err) {
+      const msg = err instanceof CausalJsonError ? err.message : "JSON 套用失敗";
+      showToast(msg);
+    }
+  }, [jsonEditorText, setEdges, setNodes, setTitle, showToast]);
+
+  const formatJsonEditor = useCallback(() => {
+    try {
+      const doc = parseCausalJson(jsonEditorText);
+      setJsonEditorText(stringifyCausalJson(doc));
+      showToast("已自動格式化 JSON");
+    } catch (err) {
+      const msg =
+        err instanceof CausalJsonError ? err.message : "JSON 格式化失敗";
+      showToast(msg);
+    }
+  }, [jsonEditorText, showToast]);
+
+  useEffect(() => {
+    if (!jsonEditorOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setJsonEditorOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [jsonEditorOpen]);
 
   const exportViewportImage = useCallback(
     async (kind: "png" | "pdf", pdfOrientation?: "portrait" | "landscape") => {
@@ -529,9 +579,9 @@ function FlowCanvas({
                 type="button"
                 onClick={() => setToolsBarCollapsed(false)}
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] text-[var(--causal-ink)] transition hover:bg-black/[0.05]"
-                title="展開工具與設定"
+                title="展開工具（匯入 JSON／匯出圖檔）"
                 aria-expanded={false}
-                aria-label="展開工具與設定"
+                aria-label="展開工具（匯入 JSON／匯出圖檔）"
               >
                 <IcoSliders className="h-5 w-5" />
               </button>
@@ -583,9 +633,12 @@ function FlowCanvas({
                   </button>
                 </div>
 
-                <details className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden">
+                <details
+                  open
+                  className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden"
+                >
                   <summary className="causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none">
-                    <span>JSON 檔案</span>
+                    <span>匯入／匯出 JSON</span>
                     <IcoChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
                   </summary>
                   <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
@@ -594,21 +647,31 @@ function FlowCanvas({
                       onClick={() => fileInputRef.current?.click()}
                       className={shellBtn}
                     >
-                      匯入
+                      匯入 JSON
                     </button>
                     <button
                       type="button"
                       onClick={exportJson}
                       className={shellBtn}
                     >
-                      匯出
+                      匯出 JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openJsonEditor}
+                      className={shellBtn}
+                    >
+                      查看／編輯 JSON
                     </button>
                   </div>
                 </details>
 
-                <details className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden">
+                <details
+                  open
+                  className="group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden"
+                >
                   <summary className="causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none">
-                    <span>匯出圖片（A4 PDF）</span>
+                    <span>匯出圖檔</span>
                     <IcoChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
                   </summary>
                   <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
@@ -618,7 +681,7 @@ function FlowCanvas({
                       onClick={() => void exportViewportImage("png")}
                       className={shellBtn}
                     >
-                      PNG
+                      匯出 PNG 圖檔
                     </button>
                     <button
                       type="button"
@@ -626,7 +689,7 @@ function FlowCanvas({
                       onClick={() => void exportViewportImage("pdf", "portrait")}
                       className={shellBtn}
                     >
-                      PDF 直
+                      匯出 PDF（直式 A4）
                     </button>
                     <button
                       type="button"
@@ -636,7 +699,7 @@ function FlowCanvas({
                       }
                       className={shellBtn}
                     >
-                      PDF 橫
+                      匯出 PDF（橫式 A4）
                     </button>
                   </div>
                 </details>
@@ -794,6 +857,65 @@ function FlowCanvas({
           )}
         </div>
       </header>
+
+      {jsonEditorOpen && (
+        <div
+          className="causal-ui absolute inset-0 z-[110] flex items-center justify-center bg-black/45 p-3 sm:p-5"
+          onClick={() => setJsonEditorOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="JSON 編輯器"
+            className="flex h-[90dvh] w-[90vw] max-w-none flex-col rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)] shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-2 border-b border-[var(--causal-node-border)] px-3 py-2.5">
+              <h2 className="text-sm font-semibold text-[var(--causal-ink)]">
+                JSON 編輯器
+              </h2>
+              <button
+                type="button"
+                onClick={() => setJsonEditorOpen(false)}
+                className={shellBtn}
+              >
+                關閉
+              </button>
+            </header>
+            <div className="min-h-0 flex-1 p-3">
+              <textarea
+                value={jsonEditorText}
+                onChange={(e) => setJsonEditorText(e.target.value)}
+                className="causal-mono h-full w-full resize-none rounded-lg border border-[var(--causal-node-border)] bg-white px-3 py-2 text-xs leading-6 text-[var(--causal-ink)]"
+                spellCheck={false}
+              />
+            </div>
+            <footer className="flex flex-wrap justify-end gap-2 border-t border-[var(--causal-node-border)] px-3 py-2.5">
+              <button
+                type="button"
+                onClick={formatJsonEditor}
+                className={shellBtn}
+              >
+                自動格式化 JSON
+              </button>
+              <button
+                type="button"
+                onClick={openJsonEditor}
+                className={shellBtn}
+              >
+                重新載入目前 JSON
+              </button>
+              <button
+                type="button"
+                onClick={applyJsonEditor}
+                className={shellBtnPrimary}
+              >
+                套用變更
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {toast && (
         <div
