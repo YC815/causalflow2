@@ -7,14 +7,10 @@ import type {
 } from "@/lib/causal-json";
 import type { CausalEdgeData } from "./causal-edge";
 import type { CausalNodeData } from "./causal-node";
+import { CAUSAL_EDGE_STROKE_HEX } from "@/lib/causal-edge-palette";
 
 function marker(polarity: CausalEdgeData["polarity"]) {
-  const color =
-    polarity === "negative"
-      ? "var(--causal-edge-neg)"
-      : polarity === "neutral"
-        ? "var(--causal-edge-neutral)"
-        : "var(--causal-edge-pos)";
+  const color = CAUSAL_EDGE_STROKE_HEX[polarity];
   return {
     type: MarkerType.ArrowClosed as const,
     width: 22,

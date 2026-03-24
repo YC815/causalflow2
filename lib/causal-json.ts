@@ -169,7 +169,7 @@ export const CAUSAL_JSON_AI_GUIDE = `CausalFlow JSON 規格（causalflowVersion:
 - polarity：
   - "positive"：正相關／促進（綠色實線，標 +）
   - "negative"：負相關／抑制（紅色虛線，標 −）
-  - "neutral"：未指定正負（灰色實線，標 ?）— 僅表示有連結，尚未標成促進或抑制
+  - "neutral"：未指定正負（灰色實線，不顯示 +/− 符號）— 僅表示有連結，尚未標成促進或抑制
 
 範例：
 {
