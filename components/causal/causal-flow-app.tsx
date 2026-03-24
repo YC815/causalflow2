@@ -26,13 +26,20 @@ import type { CausalEdgeData } from "./causal-edge";
 import { CausalEdge } from "./causal-edge";
 import type { CausalNodeData } from "./causal-node";
 import { CausalNode } from "./causal-node";
-import { layoutCausalNodes } from "@/lib/causal-auto-layout";
+import {
+  type CausalLayoutDirection,
+  layoutCausalNodes,
+} from "@/lib/causal-auto-layout";
 import {
   documentToFlow,
   flowToDocument,
   newFlowEdge,
   withMarkers,
 } from "./flow-adapters";
+import {
+  CausalOrientationProvider,
+  type CausalFlowOrientation,
+} from "./causal-orientation-context";
 import { JsonGuidePanel } from "./json-guide-panel";
 import {
   captureViewportToPngDataUrl,
@@ -70,6 +77,10 @@ function FlowCanvas({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exportingImage, setExportingImage] = useState(false);
+  const [layoutDirection, setLayoutDirection] =
+    useState<CausalLayoutDirection>("LR");
+  const flowOrientation: CausalFlowOrientation =
+    layoutDirection === "LR" ? "horizontal" : "vertical";
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -114,11 +125,28 @@ function FlowCanvas({
         layoutCausalNodes(
           ns as Node<CausalNodeData>[],
           edges as Edge<CausalEdgeData>[],
+          layoutDirection,
         ),
       );
     });
     fitView({ padding: 0.2, duration: 280 });
-  }, [edges, fitView, setNodes]);
+  }, [edges, fitView, layoutDirection, setNodes]);
+
+  const toggleLayoutOrientation = useCallback(() => {
+    const next: CausalLayoutDirection =
+      layoutDirection === "LR" ? "TB" : "LR";
+    setLayoutDirection(next);
+    flushSync(() => {
+      setNodes((ns) =>
+        layoutCausalNodes(
+          ns as Node<CausalNodeData>[],
+          edges as Edge<CausalEdgeData>[],
+          next,
+        ),
+      );
+    });
+    fitView({ padding: 0.2, duration: 280 });
+  }, [edges, fitView, layoutDirection, setNodes]);
 
   const addNode = useCallback(() => {
     const id = `n-${Date.now().toString(36)}`;
@@ -250,6 +278,7 @@ function FlowCanvas({
 
   return (
     <div className="relative h-[100dvh] w-full">
+      <CausalOrientationProvider orientation={flowOrientation}>
       <div ref={flowWrapRef} className="h-full w-full min-h-0">
         <ReactFlow
         nodes={nodes}
@@ -278,6 +307,7 @@ function FlowCanvas({
         />
       </ReactFlow>
       </div>
+      </CausalOrientationProvider>
 
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 p-4">
         <div className="pointer-events-auto max-w-md rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 px-4 py-3 shadow-md backdrop-blur-sm">
@@ -314,6 +344,18 @@ function FlowCanvas({
               className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
             >
               一鍵排版
+            </button>
+            <button
+              type="button"
+              onClick={toggleLayoutOrientation}
+              title={
+                layoutDirection === "LR"
+                  ? "橫式：連接點在卡片左右側。點擊改為直式（連接點在上下方）並重新排版"
+                  : "直式：連接點在卡片上下方。點擊改為橫式（連接點在左右側）並重新排版"
+              }
+              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
+            >
+              {layoutDirection === "LR" ? "切為直式" : "切為橫式"}
             </button>
             <button
               type="button"
