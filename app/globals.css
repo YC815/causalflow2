@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --causal-canvas: #e8dfd2;
+  --causal-canvas-mid: #efe8de;
+  --causal-paper: #faf6ef;
+  --causal-paper-2: #f3ebe0;
+  --causal-ink: #1a1816;
+  --causal-ink-muted: #5e5850;
+  --causal-node-border: #c9bda8;
+  --causal-accent: #2c5f4e;
+  --causal-accent-muted: rgba(44, 95, 78, 0.18);
+  --causal-handle: #7a6f5c;
+  --causal-edge-pos: #1a5c4a;
+  --causal-edge-neg: #9a3d32;
+  --causal-edge-pos-muted: rgba(26, 92, 74, 0.2);
+  --causal-edge-neg-muted: rgba(154, 61, 50, 0.18);
+  --causal-dot: rgba(60, 52, 40, 0.11);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-causal-ui);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100dvh;
+  color: var(--causal-ink);
+  font-family: var(--font-causal-ui), system-ui, sans-serif;
+  background-color: var(--causal-canvas);
+  background-image:
+    radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      var(--causal-canvas-mid),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 90% 60% at 100% 100%,
+      rgba(255, 252, 245, 0.5),
+      transparent
+    );
+}
+
+.causal-serif {
+  font-family: var(--font-causal-serif), "Noto Serif TC", serif;
+}
+
+.causal-ui {
+  font-family: var(--font-causal-ui), system-ui, sans-serif;
+}
+
+.causal-display {
+  font-family: var(--font-causal-serif), "Noto Serif TC", serif;
+  font-weight: 600;
+}
+
+.causal-mono {
+  font-family: var(--font-causal-mono), ui-monospace, monospace;
+}
+
+.react-flow__node.causal {
+  cursor: grab;
+}
+
+.react-flow__node.causal:active {
+  cursor: grabbing;
 }
