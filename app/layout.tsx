@@ -25,7 +25,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CausalFlow — 邏輯因果圖",
-  description: "繪製邏輯因果圖、匯入匯出 JSON、單雙向與正負相關箭頭",
+  description:
+    "繪製邏輯因果圖、匯入匯出 JSON／PNG／PDF、單雙向與正負相關箭頭",
 };
 
 export default function RootLayout({

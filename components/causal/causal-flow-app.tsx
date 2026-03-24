@@ -34,6 +34,12 @@ import {
   withMarkers,
 } from "./flow-adapters";
 import { JsonGuidePanel } from "./json-guide-panel";
+import {
+  captureViewportToPngDataUrl,
+  downloadPdfFromPngDataUrl,
+  downloadPngFromDataUrl,
+  safeExportBasename,
+} from "@/lib/causal-flow-export";
 
 const nodeTypes = { causal: CausalNode };
 const edgeTypes = { causal: CausalEdge };
@@ -48,7 +54,9 @@ function FlowCanvas({
   const initial = documentToFlow(SAMPLE_CAUSAL_DOCUMENT);
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
-  const { screenToFlowPosition, fitView } = useReactFlow();
+  const { screenToFlowPosition, fitView, getViewport, setViewport } =
+    useReactFlow();
+  const flowWrapRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const edgeSeq = useRef(0);
   const formId = useId();
@@ -61,6 +69,7 @@ function FlowCanvas({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [exportingImage, setExportingImage] = useState(false);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -179,6 +188,43 @@ function FlowCanvas({
     showToast("已下載 causalflow.json");
   }, [edges, nodes, showToast, title]);
 
+  const exportViewportImage = useCallback(
+    async (kind: "png" | "pdf") => {
+      const viewportEl = flowWrapRef.current?.querySelector(
+        ".react-flow__viewport",
+      ) as HTMLElement | null;
+      if (!viewportEl) {
+        showToast("無法匯出：找不到畫布");
+        return;
+      }
+      const prev = getViewport();
+      setExportingImage(true);
+      try {
+        await fitView({ padding: 0.15, duration: 0 });
+        await new Promise<void>((r) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => r());
+          });
+        });
+        const dataUrl = await captureViewportToPngDataUrl(viewportEl);
+        const base = safeExportBasename(title);
+        if (kind === "png") {
+          downloadPngFromDataUrl(dataUrl, `${base}.png`);
+          showToast("已下載 PNG");
+        } else {
+          await downloadPdfFromPngDataUrl(dataUrl, `${base}.pdf`);
+          showToast("已下載 PDF");
+        }
+      } catch {
+        showToast(kind === "png" ? "PNG 匯出失敗" : "PDF 匯出失敗");
+      } finally {
+        setViewport(prev, { duration: 0 });
+        setExportingImage(false);
+      }
+    },
+    [fitView, getViewport, setViewport, showToast, title],
+  );
+
   const onFile = useCallback(
     async (f: File | null) => {
       if (!f) return;
@@ -204,7 +250,8 @@ function FlowCanvas({
 
   return (
     <div className="relative h-[100dvh] w-full">
-      <ReactFlow
+      <div ref={flowWrapRef} className="h-full w-full min-h-0">
+        <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -230,6 +277,7 @@ function FlowCanvas({
           showInteractive={false}
         />
       </ReactFlow>
+      </div>
 
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-3 p-4">
         <div className="pointer-events-auto max-w-md rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 px-4 py-3 shadow-md backdrop-blur-sm">
@@ -237,7 +285,7 @@ function FlowCanvas({
             CausalFlow
           </h1>
           <p className="causal-ui mt-1 text-xs text-[var(--causal-ink-muted)]">
-            邏輯因果圖 · 拖曳連線 · 匯入／匯出 JSON
+            邏輯因果圖 · 拖曳連線 · 匯入／匯出 JSON、PNG、PDF
           </p>
           <label htmlFor={`${formId}-title`} className="sr-only">
             圖標題
@@ -280,6 +328,22 @@ function FlowCanvas({
               className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04]"
             >
               匯出 JSON
+            </button>
+            <button
+              type="button"
+              disabled={exportingImage}
+              onClick={() => void exportViewportImage("png")}
+              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              匯出 PNG
+            </button>
+            <button
+              type="button"
+              disabled={exportingImage}
+              onClick={() => void exportViewportImage("pdf")}
+              className="causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-3 py-2 text-sm text-[var(--causal-ink)] hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              匯出 PDF
             </button>
             <input
               ref={fileInputRef}
