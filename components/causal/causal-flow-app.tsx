@@ -328,21 +328,47 @@ function FlowCanvas({
         return;
       }
       const prev = getViewport();
+      const prevLayoutDirection = layoutDirection;
+      const prevNodes = nodes;
+      let didTemporarilyRelayout = false;
       setExportingImage(true);
       try {
+        const o = pdfOrientation ?? "portrait";
+        const shouldReLayoutForPdf = kind === "pdf";
+        if (shouldReLayoutForPdf) {
+          const nextDirection: CausalLayoutDirection =
+            o === "portrait" ? "TB" : "LR";
+          if (nextDirection !== layoutDirection) {
+            // 匯出前先重排成目標方向，避免「直式 PDF 只是縮小橫圖」。
+            flushSync(() => {
+              setLayoutDirection(nextDirection);
+              setNodes((ns) =>
+                layoutCausalNodes(
+                  ns as Node<CausalNodeData>[],
+                  edges as Edge<CausalEdgeData>[],
+                  nextDirection,
+                ),
+              );
+            });
+            didTemporarilyRelayout = true;
+          }
+        }
         await fitView({ padding: 0.15, duration: 0 });
         await new Promise<void>((r) => {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => r());
           });
         });
-        const dataUrl = await captureViewportToPngDataUrl(viewportEl);
         const base = safeExportBasename(title);
         if (kind === "png") {
+          const dataUrl = await captureViewportToPngDataUrl(viewportEl);
           downloadPngFromDataUrl(dataUrl, `${base}.png`);
           showToast("已下載 PNG");
         } else {
-          const o = pdfOrientation ?? "portrait";
+          const dataUrl = await captureViewportToPngDataUrl(viewportEl, {
+            // PDF 走高解析位圖，提升文字與線條清晰度。
+            pixelRatio: 4,
+          });
           await downloadPdfFromPngDataUrl(dataUrl, `${base}.pdf`, {
             orientation: o,
           });
@@ -351,11 +377,27 @@ function FlowCanvas({
       } catch {
         showToast(kind === "png" ? "PNG 匯出失敗" : "PDF 匯出失敗");
       } finally {
+        if (didTemporarilyRelayout) {
+          flushSync(() => {
+            setLayoutDirection(prevLayoutDirection);
+            setNodes(prevNodes);
+          });
+        }
         setViewport(prev, { duration: 0 });
         setExportingImage(false);
       }
     },
-    [fitView, getViewport, setViewport, showToast, title],
+    [
+      edges,
+      fitView,
+      getViewport,
+      layoutDirection,
+      nodes,
+      setNodes,
+      setViewport,
+      showToast,
+      title,
+    ],
   );
 
   const onFile = useCallback(

@@ -34,7 +34,11 @@ export function downloadPngFromDataUrl(dataUrl: string, filename: string) {
 
 export type PdfPageOrientation = "portrait" | "landscape";
 
-/** A4 頁面，依版面縮放置中圖片（維持比例）。 */
+/**
+ * A4 頁面輸出：
+ * - 直式：滿版鋪滿（cover），避免上下大白邊（必要時裁切左右）。
+ * - 橫式：等比例置中（contain），保留完整內容。
+ */
 export function downloadPdfFromPngDataUrl(
   dataUrl: string,
   filename: string,
@@ -54,23 +58,35 @@ export function downloadPdfFromPngDataUrl(
         });
         const pageW = pdf.internal.pageSize.getWidth();
         const pageH = pdf.internal.pageSize.getHeight();
-        const marginMm = 10;
+        const marginMm = orientation === "portrait" ? 0 : 10;
         const innerW = pageW - 2 * marginMm;
         const innerH = pageH - 2 * marginMm;
         const imgRatio = wPx / hPx;
         const boxRatio = innerW / innerH;
         let drawW: number;
         let drawH: number;
-        if (imgRatio > boxRatio) {
-          drawW = innerW;
-          drawH = innerW / imgRatio;
+        if (orientation === "portrait") {
+          // cover：優先鋪滿頁面，寧可裁切也不要上下白邊。
+          if (imgRatio > boxRatio) {
+            drawH = innerH;
+            drawW = innerH * imgRatio;
+          } else {
+            drawW = innerW;
+            drawH = innerW / imgRatio;
+          }
         } else {
-          drawH = innerH;
-          drawW = innerH * imgRatio;
+          // contain：保留完整圖面，置中顯示。
+          if (imgRatio > boxRatio) {
+            drawW = innerW;
+            drawH = innerW / imgRatio;
+          } else {
+            drawH = innerH;
+            drawW = innerH * imgRatio;
+          }
         }
         const x = marginMm + (innerW - drawW) / 2;
         const y = marginMm + (innerH - drawH) / 2;
-        pdf.addImage(dataUrl, "PNG", x, y, drawW, drawH, undefined, "FAST");
+        pdf.addImage(dataUrl, "PNG", x, y, drawW, drawH, undefined, "SLOW");
         pdf.save(filename);
         resolve();
       } catch (e) {
