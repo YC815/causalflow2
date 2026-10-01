@@ -3,7 +3,6 @@
 import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
 import { useCausalStore } from "@/lib/store/causal-store";
 import { FileSidebar } from "./file-sidebar";
-import { Inspector } from "./inspector";
 import {
   cardClass,
   chipClass,
@@ -205,6 +204,7 @@ function ToolsPanel({
               <button
                 key={o.value}
                 type="button"
+                aria-pressed={defaultPolarity === o.value}
                 onClick={() => setDefaultPolarity(o.value)}
                 className={chipClass(defaultPolarity === o.value, o.activeClass)}
               >
@@ -213,8 +213,6 @@ function ToolsPanel({
             ))}
           </div>
         </div>
-
-        <Inspector />
       </div>
     </aside>
   );

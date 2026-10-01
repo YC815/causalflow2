@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
-import { ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { ArrowLeftRight, ArrowUpDown, Pencil } from "lucide-react";
 import {
   Handle,
   NodeToolbar,
@@ -13,6 +13,8 @@ import {
 import { useCausalStore } from "@/lib/store/causal-store";
 import { useCausalFlowOrientation } from "./causal-orientation-context";
 import { shellBtn } from "./ui-classes";
+
+const toolbarBtn = `${shellBtn} flex items-center gap-1`;
 
 export type CausalNodeData = {
   label: string;
@@ -66,6 +68,7 @@ export function CausalNode({
   const editing = useCausalStore((s) => s.editing?.id === id);
   const exporting = useCausalStore((s) => s.exporting);
   const toggleFlip = useCausalStore((s) => s.toggleFlip);
+  const startEditing = useCausalStore((s) => s.startEditing);
   const onlySelected = useCausalStore(
     (s) => s.nodes.filter((n) => n.selected).length === 1,
   );
@@ -103,19 +106,33 @@ export function CausalNode({
       <NodeToolbar
         position={Position.Top}
         isVisible={Boolean(selected) && !editing && !exporting && onlySelected}
+        className="flex gap-1"
       >
         <button
           type="button"
+          title="編輯文字（F2／Space／雙擊）"
+          className={`${toolbarBtn} nodrag nopan`}
+          onClick={(e) => {
+            // 先釋放焦點再進編輯，避免搶走編輯框的 focus；結束後快捷鍵照常有效
+            e.currentTarget.blur();
+            startEditing(id);
+          }}
+        >
+          <Pencil className="size-3.5" aria-hidden />
+          編輯
+        </button>
+        <button
+          type="button"
           title="翻轉輸入／輸出（F）"
-          aria-label="翻轉輸入／輸出（F）"
-          className={`${shellBtn} nodrag nopan`}
+          className={`${toolbarBtn} nodrag nopan`}
           onClick={(e) => {
             toggleFlip([id]);
             // 釋放焦點，讓 F 快捷鍵繼續有效
             e.currentTarget.blur();
           }}
         >
-          <FlipIcon className="size-3.5" />
+          <FlipIcon className="size-3.5" aria-hidden />
+          翻轉
         </button>
       </NodeToolbar>
       <Handle

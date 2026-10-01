@@ -363,7 +363,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         ),
       })),
 
-    // 還原 label 並丟掉 commit() 留下的那筆歷史（Inspector 清空後失焦用）
+    // 還原 label 並丟掉 commit() 留下的那筆歷史（文字欄清空後失焦用）
     restoreLabel: (id, label) =>
       set((s) => ({
         nodes: s.nodes.map((n) =>

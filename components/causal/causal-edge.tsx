@@ -1,9 +1,11 @@
 "use client";
 
 import { Fragment, useRef } from "react";
+import { ArrowLeftRight } from "lucide-react";
 import {
   BaseEdge,
   EdgeProps,
+  EdgeToolbar,
   getBezierPath,
   useReactFlow,
 } from "@xyflow/react";
@@ -11,6 +13,7 @@ import type { CausalPolarity } from "@/lib/causal-json";
 import { type Bend, type Pt, bendFromPoint, bentEdgePath } from "@/lib/edge-geometry";
 import { useCausalStore } from "@/lib/store/causal-store";
 import { CAUSAL_EDGE_STROKE_HEX } from "@/lib/causal-edge-palette";
+import { chipClass, POLARITY_OPTIONS } from "./ui-classes";
 
 export type CausalEdgeData = {
   polarity: CausalPolarity;
@@ -156,6 +159,85 @@ function BendHandle({
   );
 }
 
+/** 工具列底緣與圓章中心的距離（flow 座標）：BendHandle 半徑＋線寬＋間距，不擋拖曳圓圈 */
+const TOOLBAR_OFFSET = BADGE_R + 5 + 1 + 8;
+
+/**
+ * 選中單一連線（且沒選節點）時浮在圓章上方的工具列：切正負號、反轉方向。
+ * EdgeToolbar 位置跟著畫布，但自身不隨縮放變小。
+ */
+function EdgeQuickToolbar({
+  id,
+  point,
+  polarity,
+  source,
+  target,
+}: {
+  id: string;
+  point: Pt;
+  polarity: CausalPolarity;
+  source: string;
+  target: string;
+}) {
+  const solo = useCausalStore(
+    (s) =>
+      !s.nodes.some((n) => n.selected) &&
+      s.edges.filter((e) => e.selected).length === 1,
+  );
+  const sourceLabel = useCausalStore(
+    (s) => s.nodes.find((n) => n.id === source)?.data.label ?? "",
+  );
+  const targetLabel = useCausalStore(
+    (s) => s.nodes.find((n) => n.id === target)?.data.label ?? "",
+  );
+  const updateEdge = useCausalStore((s) => s.updateEdge);
+  const reverseEdge = useCausalStore((s) => s.reverseEdge);
+
+  if (!solo) return null;
+  return (
+    <EdgeToolbar
+      edgeId={id}
+      x={point.x}
+      y={point.y - TOOLBAR_OFFSET}
+      alignY="bottom"
+      isVisible
+      role="toolbar"
+      aria-label={`連線：${sourceLabel} → ${targetLabel}`}
+      className="nodrag nopan flex items-center gap-1 rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper)] p-1 shadow-md"
+    >
+      {POLARITY_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={polarity === o.value}
+          className={chipClass(polarity === o.value, o.activeClass)}
+          onClick={(e) => {
+            // 同值不重寫，避免留下空的復原紀錄
+            if (polarity !== o.value) updateEdge(id, { polarity: o.value });
+            // 釋放焦點，讓快捷鍵繼續有效
+            e.currentTarget.blur();
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+      <span aria-hidden className="mx-0.5 h-4 w-px bg-[var(--causal-node-border)]" />
+      <button
+        type="button"
+        title="反轉方向"
+        className={`${chipClass(false, "")} flex items-center gap-1`}
+        onClick={(e) => {
+          reverseEdge(id);
+          e.currentTarget.blur();
+        }}
+      >
+        <ArrowLeftRight className="size-3" aria-hidden />
+        反轉方向
+      </button>
+    </EdgeToolbar>
+  );
+}
+
 export function CausalEdge({
   id,
   sourceX,
@@ -164,6 +246,8 @@ export function CausalEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  source: sourceId,
+  target: targetId,
   markerEnd,
   data,
   selected,
@@ -219,6 +303,15 @@ export function CausalEdge({
       )}
       {selected && !exporting && (
         <BendHandle id={id} point={point} source={source} target={target} />
+      )}
+      {selected && !exporting && Number.isFinite(point.x) && Number.isFinite(point.y) && (
+        <EdgeQuickToolbar
+          id={id}
+          point={point}
+          polarity={polarity}
+          source={sourceId}
+          target={targetId}
+        />
       )}
     </Fragment>
   );

@@ -14,16 +14,32 @@ export const POLARITY_OPTIONS: {
   label: string;
   activeClass: string;
 }[] = [
-  { value: "positive", label: "正", activeClass: "bg-[var(--causal-edge-pos-muted)]" },
-  { value: "negative", label: "負", activeClass: "bg-[var(--causal-edge-neg-muted)]" },
-  { value: "neutral", label: "未指定", activeClass: "bg-[var(--causal-edge-neutral-muted)]" },
+  {
+    value: "positive",
+    label: "正",
+    activeClass:
+      "border-[var(--causal-edge-pos)] bg-[var(--causal-edge-pos-muted)] text-[var(--causal-edge-pos)]",
+  },
+  {
+    value: "negative",
+    label: "負",
+    activeClass:
+      "border-[var(--causal-edge-neg)] bg-[var(--causal-edge-neg-muted)] text-[var(--causal-edge-neg)]",
+  },
+  {
+    value: "neutral",
+    label: "未指定",
+    activeClass:
+      "border-[var(--causal-edge-neutral)] bg-[var(--causal-edge-neutral-muted)] text-[var(--causal-edge-neutral)]",
+  },
 ];
 
+/** 未選也保留透明邊框，切換時尺寸不跳動；選中＝實色邊框＋加深底色與字色 */
 export function chipClass(active: boolean, activeClass: string): string {
-  return `causal-ui rounded-md px-2 py-1 text-[11px] ${
+  return `causal-ui rounded-md border px-2 py-1 text-[11px] transition ${
     active
-      ? `${activeClass} text-[var(--causal-ink)]`
-      : "bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)]"
+      ? `${activeClass} font-semibold`
+      : "border-transparent bg-[var(--causal-paper-2)] text-[var(--causal-ink-muted)] hover:bg-black/[0.04] hover:text-[var(--causal-ink)]"
   }`;
 }
 
