@@ -29,6 +29,7 @@ import { CausalEdge } from "./causal-edge";
 import { CausalNode } from "./causal-node";
 import { CausalOrientationProvider } from "./causal-orientation-context";
 import { CommandPalette, type PaletteAction } from "./command-palette";
+import { EmptyCanvasHint } from "./empty-canvas-hint";
 import { JsonEditorDialog } from "./json-editor-dialog";
 import { JsonGuidePanel } from "./json-guide-panel";
 import { ShortcutsDialog } from "./shortcuts-dialog";
@@ -307,6 +308,11 @@ function FlowCanvas() {
         </div>
         </CanvasContextMenu>
       </CausalOrientationProvider>
+
+      <EmptyCanvasHint
+        panels={{ sidebarCollapsed, toolsCollapsed }}
+        onAddNode={commands.addNodeAtCenter}
+      />
 
       <Toolbar
         sidebarCollapsed={sidebarCollapsed}

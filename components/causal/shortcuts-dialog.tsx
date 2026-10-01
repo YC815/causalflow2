@@ -22,6 +22,7 @@ function rows(mod: string): { group: string; items: Row[] }[] {
         { keys: [["F2"], ["Space"]], label: "編輯選取節點" },
         { keys: [["F"]], label: "翻轉輸入／輸出" },
         { keys: [["雙擊"]], label: "編輯節點／在空白處新增" },
+        { keys: [["拖曳節點圓點"]], label: "放到另一節點＝連線／放到空白處＝新增相連節點" },
         { keys: [["Enter"]], label: "編輯中：確認（Shift+Enter 換行）" },
         { keys: [["Esc"]], label: "編輯中：取消" },
       ],
