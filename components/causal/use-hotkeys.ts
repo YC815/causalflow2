@@ -70,6 +70,8 @@ export function useHotkeys(
       const arrow = ARROWS[e.key];
       if (arrow) return consume(commands.navigate(arrow));
 
+      if (e.key.toLowerCase() === "f") return consume(commands.toggleFlipSelected());
+
       if (e.key === "+" || e.key === "=") {
         return consume(commands.setSelectedEdgePolarity("positive"));
       }

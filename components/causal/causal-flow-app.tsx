@@ -88,6 +88,7 @@ function FlowCanvas() {
       { id: "orientation", label: "切換橫式／直式", run: commands.toggleOrientation },
       { id: "undo", label: "復原", shortcut: `${mod}Z`, run: commands.undo },
       { id: "redo", label: "重做", shortcut: `${mod}⇧Z`, run: commands.redo },
+      { id: "flip", label: "翻轉選取節點的輸入／輸出", shortcut: "F", run: () => void commands.toggleFlipSelected() },
       { id: "import", label: "匯入 JSON", run: () => fileInputRef.current?.click() },
       { id: "export-json", label: "匯出 JSON", run: commands.exportJson },
       { id: "edit-json", label: "查看／編輯 JSON", run: () => setJsonEditorOpen(true) },

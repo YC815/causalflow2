@@ -1,8 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import { ArrowLeftRight, ArrowUpDown } from "lucide-react";
 import {
   Handle,
+  NodeToolbar,
   Position,
   type Node,
   type NodeProps,
@@ -10,6 +12,7 @@ import {
 } from "@xyflow/react";
 import { useCausalStore } from "@/lib/store/causal-store";
 import { useCausalFlowOrientation } from "./causal-orientation-context";
+import { shellBtn } from "./ui-classes";
 
 export type CausalNodeData = {
   label: string;
@@ -69,15 +72,24 @@ export function CausalNode({
   const orientation = useCausalFlowOrientation();
   const updateNodeInternals = useUpdateNodeInternals();
   const editing = useCausalStore((s) => s.editing?.id === id);
-  const targetPos =
-    orientation === "horizontal" ? Position.Left : Position.Top;
-  const sourcePos =
-    orientation === "horizontal" ? Position.Right : Position.Bottom;
+  const exporting = useCausalStore((s) => s.exporting);
+  const toggleFlip = useCausalStore((s) => s.toggleFlip);
+  const onlySelected = useCausalStore(
+    (s) => s.nodes.filter((n) => n.selected).length === 1,
+  );
+  const flipped = Boolean(data.flipped);
+  const horizontal = orientation === "horizontal";
+  const inSide = horizontal ? Position.Left : Position.Top;
+  const outSide = horizontal ? Position.Right : Position.Bottom;
+  // 翻轉：輸入／輸出兩側對調
+  const targetPos = flipped ? outSide : inSide;
+  const sourcePos = flipped ? inSide : outSide;
+  const FlipIcon = horizontal ? ArrowLeftRight : ArrowUpDown;
 
   /** Handle 位置變更後通知 React Flow 重算連線端點，否則邊仍沿用舊的左右座標 */
   useLayoutEffect(() => {
     updateNodeInternals(id);
-  }, [id, orientation, updateNodeInternals]);
+  }, [id, orientation, flipped, updateNodeInternals]);
 
   return (
     <div
@@ -88,6 +100,20 @@ export function CausalNode({
           : "border-[var(--causal-node-border)]",
       ].join(" ")}
     >
+      <NodeToolbar
+        position={Position.Top}
+        isVisible={Boolean(selected) && !editing && !exporting && onlySelected}
+      >
+        <button
+          type="button"
+          title="翻轉輸入／輸出（F）"
+          aria-label="翻轉輸入／輸出（F）"
+          className={`${shellBtn} nodrag nopan`}
+          onClick={() => toggleFlip([id])}
+        >
+          <FlipIcon className="size-3.5" />
+        </button>
+      </NodeToolbar>
       <Handle
         type="target"
         position={targetPos}

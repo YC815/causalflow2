@@ -241,6 +241,15 @@ export function useCausalCommands(
         if (id) store().resetEdgeBend(id);
       },
 
+      toggleFlipSelected: (): boolean => {
+        const ids = store()
+          .nodes.filter((n) => n.selected)
+          .map((n) => n.id);
+        if (ids.length === 0) return false;
+        store().toggleFlip(ids);
+        return true;
+      },
+
       focusNode: (id: string) => {
         store().selectNodes([id]);
         void fitView({ nodes: [{ id }], duration: 280, maxZoom: 1.2, padding: 0.6 });

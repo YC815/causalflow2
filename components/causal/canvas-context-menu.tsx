@@ -30,6 +30,10 @@ function SelectionItems({ commands }: { commands: CausalCommands }) {
         建立副本
         <ContextMenuShortcut>{mod}D</ContextMenuShortcut>
       </ContextMenuItem>
+      <ContextMenuItem onSelect={() => commands.toggleFlipSelected()}>
+        翻轉輸入／輸出
+        <ContextMenuShortcut>F</ContextMenuShortcut>
+      </ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem variant="destructive" onSelect={commands.deleteSelected}>
         刪除

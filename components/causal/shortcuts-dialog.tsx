@@ -20,6 +20,7 @@ function rows(mod: string): { group: string; items: Row[] }[] {
         { keys: [["Tab"]], label: "建立下游節點" },
         { keys: [["Enter"]], label: "建立同層節點" },
         { keys: [["F2"], ["Space"]], label: "編輯選取節點" },
+        { keys: [["F"]], label: "翻轉輸入／輸出" },
         { keys: [["雙擊"]], label: "編輯節點／在空白處新增" },
         { keys: [["Enter"]], label: "編輯中：確認（Shift+Enter 換行）" },
         { keys: [["Esc"]], label: "編輯中：取消" },
@@ -40,6 +41,7 @@ function rows(mod: string): { group: string; items: Row[] }[] {
         { keys: [["+"]], label: "正相關" },
         { keys: [["-"]], label: "負相關" },
         { keys: [["0"]], label: "未指定" },
+        { keys: [["拖曳圓圈"]], label: "改變連線形狀（雙擊重設）" },
       ],
     },
     {
