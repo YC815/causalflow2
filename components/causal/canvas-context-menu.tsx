@@ -139,7 +139,11 @@ export function CanvasContextMenu({
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       {target && (
-        <ContextMenuContent className="causal-ui w-52">
+        <ContextMenuContent
+          className="causal-ui w-52"
+          // 選單關閉時 Radix 會把焦點還給開啟前的節點，搶走剛建立的編輯框焦點
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <MenuItems target={target} commands={commands} />
         </ContextMenuContent>
       )}
