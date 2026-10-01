@@ -26,7 +26,7 @@ function NodeLabelEditor({ initial }: { initial: string }) {
     let timer = 0;
     let tries = 0;
     const tryFocus = () => {
-      el.focus();
+      el.focus({ preventScroll: true });
       if (document.activeElement === el) {
         el.select();
         return;
@@ -46,7 +46,7 @@ function NodeLabelEditor({ initial }: { initial: string }) {
       className="nodrag nopan nowheel causal-ui block w-full min-w-[6rem] resize-none bg-transparent text-center text-[0.95rem] leading-snug text-[var(--causal-ink)] outline-none [field-sizing:content]"
       onKeyDown={(e) => {
         // 中文輸入法選字時的 Enter 不算確認
-        if (e.nativeEvent.isComposing) return;
+        if (e.nativeEvent.isComposing || e.keyCode === 229) return;
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           finishEditing(e.currentTarget.value);

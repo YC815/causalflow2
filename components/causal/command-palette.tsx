@@ -52,7 +52,8 @@ export function CommandPalette({
             {actions.map((a) => (
               <CommandItem
                 key={a.id}
-                value={`action ${a.label}`}
+                value={a.id}
+                keywords={[a.label]}
                 onSelect={() => choose(a.run)}
               >
                 {a.label}
@@ -65,7 +66,8 @@ export function CommandPalette({
               {nodes.map((n) => (
                 <CommandItem
                   key={n.id}
-                  value={`node ${n.id} ${n.data.label}`}
+                  value={n.id}
+                  keywords={[n.data.label]}
                   onSelect={() => choose(() => onFocusNode(n.id))}
                 >
                   {n.data.label}

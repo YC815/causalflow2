@@ -22,6 +22,7 @@ import {
 import type { CausalJsonDocument, CausalPolarity } from "@/lib/causal-json";
 import { instantiateFragment } from "@/lib/clipboard";
 import {
+  discardLast,
   emptyHistory,
   type History,
   record,
@@ -119,6 +120,7 @@ export type CausalState = {
   ) => string;
   connect: (source: string, target: string) => boolean;
   updateNodeLabel: (id: string, label: string) => void;
+  restoreLabel: (id: string, label: string) => void;
   updateEdge: (id: string, patch: Partial<CausalEdgeData>) => void;
   reverseEdge: (id: string) => boolean;
   deleteSelected: () => void;
@@ -268,6 +270,15 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         ),
       })),
 
+    // 還原 label 並丟掉 commit() 留下的那筆歷史（Inspector 清空後失焦用）
+    restoreLabel: (id, label) =>
+      set((s) => ({
+        nodes: s.nodes.map((n) =>
+          n.id === id ? { ...n, data: { ...n.data, label } } : n,
+        ),
+        history: discardLast(s.history),
+      })),
+
     updateEdge: (id, patch) => {
       commit();
       set((s) => ({
@@ -383,7 +394,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
           edges: s.edges.filter(
             (e) => e.source !== editing.id && e.target !== editing.id,
           ),
-          history: { past: s.history.past.slice(0, -1), future: s.editingSavedFuture },
+          history: { ...discardLast(s.history), future: s.editingSavedFuture },
           editing: null,
           editingSavedFuture: [],
         }));

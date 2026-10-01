@@ -49,6 +49,11 @@ export function useAutosave(): void {
     const save = () => {
       window.clearTimeout(timer);
       timer = undefined;
+      // 匯出 PDF 期間版面是暫時的，不能存；稍後重試
+      if (useCausalStore.getState().exporting) {
+        timer = window.setTimeout(save, SAVE_DEBOUNCE_MS);
+        return;
+      }
       const { nodes, edges, title, layoutDirection, showToast } =
         useCausalStore.getState();
       const ok = saveStoredDocument(

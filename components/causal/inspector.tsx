@@ -8,9 +8,11 @@ function NodeLabelField({ id, label }: { id: string; label: string }) {
   const fieldId = useId();
   const commit = useCausalStore((s) => s.commit);
   const updateNodeLabel = useCausalStore((s) => s.updateNodeLabel);
+  const restoreLabel = useCausalStore((s) => s.restoreLabel);
   // 聚焦期間顯示草稿；空白不寫回 store，避免存出空 label
   const [draft, setDraft] = useState<string | null>(null);
   const dirtyRef = useRef(false);
+  const originalRef = useRef(label);
 
   return (
     <>
@@ -22,6 +24,7 @@ function NodeLabelField({ id, label }: { id: string; label: string }) {
         value={draft ?? label}
         onFocus={() => {
           setDraft(label);
+          originalRef.current = label;
           dirtyRef.current = false;
         }}
         onChange={(e) => {
@@ -34,7 +37,13 @@ function NodeLabelField({ id, label }: { id: string; label: string }) {
           }
           updateNodeLabel(id, value);
         }}
-        onBlur={() => setDraft(null)}
+        onBlur={() => {
+          // 清空後失焦：退回聚焦時的 label，不留下中途的殘缺字串
+          if (dirtyRef.current && !draft?.trim()) {
+            restoreLabel(id, originalRef.current);
+          }
+          setDraft(null);
+        }}
         rows={3}
         className="causal-ui mt-1.5 w-full resize-y rounded-lg border border-[var(--causal-node-border)] bg-white px-2 py-1.5 text-sm text-[var(--causal-ink)]"
       />

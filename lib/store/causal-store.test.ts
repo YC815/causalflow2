@@ -205,3 +205,14 @@ describe("causal store", () => {
     expect(s().editing).toBeNull();
   });
 });
+
+describe("restoreLabel", () => {
+  it("還原 label 並丟掉最新一筆歷史", () => {
+    const before = s().history.past.length;
+    s().commit();
+    s().updateNodeLabel("a", "x");
+    s().restoreLabel("a", "A");
+    expect(s().nodes.find((n) => n.id === "a")?.data.label).toBe("A");
+    expect(s().history.past.length).toBe(before);
+  });
+});

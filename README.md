@@ -20,7 +20,8 @@ pnpm build
 | 建立下游／同層節點 | Tab／Enter |
 | 切換選取 | 方向鍵 |
 | 連線極性 | 選取連線後按 `+` `-` `0`，`B` 切單／雙向 |
-| 復原／重做 | ⌘/Ctrl+Z、⌘/Ctrl+Shift+Z |
+| 復原／重做 | ⌘/Ctrl+Z、⌘/Ctrl+Shift+Z、⌘/Ctrl+Y |
+| 全選 | ⌘/Ctrl+A |
 | 複製／剪下／貼上／副本 | ⌘/Ctrl+C／X／V／D（可跨分頁貼上） |
 | 命令面板（含節點搜尋） | ⌘/Ctrl+K |
 | 一鍵排版 | ⌘/Ctrl+L |

@@ -40,6 +40,8 @@ export function useHotkeys(
     const onKeyDown = (e: KeyboardEvent) => {
       if (useCausalStore.getState().exporting) return;
       if (e.isComposing || isOwnedByOtherUi(e.target)) return;
+      // 按住 Enter／Tab 會連環建節點；只有方向鍵允許連發
+      if (e.repeat && !(e.key in ARROWS)) return;
 
       // 對「有做事才攔截」的鍵：handler 回傳 true 才 preventDefault
       const consume = (handled: boolean) => {

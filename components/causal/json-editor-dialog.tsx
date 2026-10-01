@@ -125,6 +125,7 @@ export function JsonEditorDialog({
         </header>
         <div className="min-h-0 flex-1 p-3">
           <textarea
+            autoFocus
             value={text}
             onChange={(e) => {
               setText(e.target.value);
