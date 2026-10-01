@@ -27,6 +27,7 @@ import { CausalOrientationProvider } from "./causal-orientation-context";
 import { CommandPalette, type PaletteAction } from "./command-palette";
 import { JsonEditorDialog } from "./json-editor-dialog";
 import { JsonGuidePanel } from "./json-guide-panel";
+import { NewBlankDialog } from "./new-blank-dialog";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { Toolbar } from "./toolbar";
 import { modKeyLabel } from "./ui-classes";
@@ -74,6 +75,7 @@ function FlowCanvas() {
   const selectEdge = useCausalStore((s) => s.selectEdge);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [blankConfirmOpen, setBlankConfirmOpen] = useState(false);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
@@ -95,7 +97,7 @@ function FlowCanvas() {
       { id: "export-png", label: "匯出 PNG", run: () => void commands.exportImage("png") },
       { id: "export-pdf-p", label: "匯出 PDF（直式 A4）", run: () => void commands.exportImage("pdf", "portrait") },
       { id: "export-pdf-l", label: "匯出 PDF（橫式 A4）", run: () => void commands.exportImage("pdf", "landscape") },
-      { id: "blank", label: "新空白圖", run: commands.newBlank },
+      { id: "blank", label: "新空白圖", run: () => setBlankConfirmOpen(true) },
       { id: "shortcuts", label: "快捷鍵一覽", shortcut: "?", run: openShortcuts },
     ];
   }, [commands, openShortcuts]);
@@ -222,6 +224,7 @@ function FlowCanvas() {
       <Toolbar
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
+        onNewBlank={() => setBlankConfirmOpen(true)}
         onOpenJsonEditor={() => setJsonEditorOpen(true)}
         onOpenPalette={openPalette}
         onOpenShortcuts={openShortcuts}
@@ -245,6 +248,11 @@ function FlowCanvas() {
         onOpenChange={setPaletteOpen}
         actions={paletteActions}
         onFocusNode={commands.focusNode}
+      />
+      <NewBlankDialog
+        open={blankConfirmOpen}
+        onOpenChange={setBlankConfirmOpen}
+        onConfirm={commands.newBlank}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
