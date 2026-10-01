@@ -97,8 +97,11 @@ function BendHandle({
   const commit = useCausalStore((s) => s.commit);
   const setEdgeBend = useCausalStore((s) => s.setEdgeBend);
   const resetEdgeBend = useCausalStore((s) => s.resetEdgeBend);
-  // 只在第一次移動時記歷史，單純點擊不產生空 commit
+  // 超過門檻才算拖曳：才記歷史、才改形狀，單純點擊／雙擊不產生空 commit
   const movedRef = useRef(false);
+  const downRef = useRef({ x: 0, y: 0 });
+  // 按下點與控制點中心的偏移（flow 座標），避免拖曳起點跳動
+  const offsetRef = useRef({ x: 0, y: 0 });
 
   return (
     <circle
@@ -116,15 +119,29 @@ function BendHandle({
         e.stopPropagation();
         e.currentTarget.setPointerCapture(e.pointerId);
         movedRef.current = false;
+        downRef.current = { x: e.clientX, y: e.clientY };
+        const down = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        offsetRef.current = { x: point.x - down.x, y: point.y - down.y };
       }}
       onPointerMove={(e) => {
         if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
         if (!movedRef.current) {
+          const d = Math.hypot(
+            e.clientX - downRef.current.x,
+            e.clientY - downRef.current.y,
+          );
+          if (d <= 3) return;
           movedRef.current = true;
           commit();
         }
         const p = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-        setEdgeBend(id, bendFromPoint(source, target, p));
+        setEdgeBend(
+          id,
+          bendFromPoint(source, target, {
+            x: p.x + offsetRef.current.x,
+            y: p.y + offsetRef.current.y,
+          }),
+        );
       }}
       onPointerUp={(e) => {
         if (e.currentTarget.hasPointerCapture(e.pointerId)) {

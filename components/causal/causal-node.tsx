@@ -109,7 +109,11 @@ export function CausalNode({
           title="翻轉輸入／輸出（F）"
           aria-label="翻轉輸入／輸出（F）"
           className={`${shellBtn} nodrag nopan`}
-          onClick={() => toggleFlip([id])}
+          onClick={(e) => {
+            toggleFlip([id]);
+            // 釋放焦點，讓 F 快捷鍵繼續有效
+            e.currentTarget.blur();
+          }}
         >
           <FlipIcon className="size-3.5" />
         </button>
