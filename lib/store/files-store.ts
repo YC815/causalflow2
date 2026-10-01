@@ -185,12 +185,17 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     createFile: (doc) => addFile(doc ?? blankDocument(), "LR"),
 
     renameFile: (id, title) => {
+      const t = title.trim();
       if (id === get().activeId) {
-        useCausalStore.getState().setTitle(title);
+        // 與標題輸入框一致：可 undo
+        const cs = useCausalStore.getState();
+        if (cs.title !== t) {
+          cs.commit();
+          cs.setTitle(t);
+        }
         return;
       }
       if (!storage) return;
-      const t = title.trim();
       const doc = readFileDoc(storage, id);
       if (doc) {
         const next: CausalJsonDocument = { ...doc, title: t };

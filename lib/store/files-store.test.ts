@@ -181,6 +181,16 @@ describe("files store", () => {
     expect(readFileDoc(storage, a)?.title).toBe("新名字");
   });
 
+  it("renameFile on the active file trims and is undoable", () => {
+    init();
+    const a = f().activeId!;
+    const old = c().title;
+    f().renameFile(a, "  新名  ");
+    expect(c().title).toBe("新名");
+    c().undo();
+    expect(c().title).toBe(old);
+  });
+
   it("renameFile on a non-active file rewrites its doc and index only", () => {
     init();
     const a = f().activeId!;

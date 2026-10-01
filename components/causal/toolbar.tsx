@@ -23,7 +23,7 @@ const detailsClass =
 const summaryClass =
   "causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none";
 
-type ToolbarProps = {
+type ToolsProps = {
   commands: CausalCommands;
   onNewFile: () => void;
   onImportFile: () => void;
@@ -32,13 +32,22 @@ type ToolbarProps = {
   onOpenShortcuts?: () => void;
 };
 
-export function Toolbar(props: ToolbarProps) {
+export function Toolbar(
+  props: ToolsProps & {
+    sidebarCollapsed: boolean;
+    onSidebarCollapsedChange: (collapsed: boolean) => void;
+  },
+) {
+  const { sidebarCollapsed, onSidebarCollapsedChange, ...tools } = props;
   return (
     <>
-      <FileSidebar />
+      <FileSidebar
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={onSidebarCollapsedChange}
+      />
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-end gap-2 p-3 sm:p-4">
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <ToolsPanel {...props} />
+          <ToolsPanel {...tools} />
         </div>
       </header>
     </>
@@ -52,7 +61,7 @@ function ToolsPanel({
   onOpenJsonEditor,
   onOpenPalette,
   onOpenShortcuts,
-}: ToolbarProps) {
+}: ToolsProps) {
   const [collapsed, setCollapsed] = useStoredFlag(LS_TOOLS, false);
   const layoutDirection = useCausalStore((s) => s.layoutDirection);
   const canUndo = useCausalStore((s) => s.history.past.length > 0);

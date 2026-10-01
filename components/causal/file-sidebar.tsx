@@ -1,6 +1,5 @@
 "use client";
 
-import { useReactFlow } from "@xyflow/react";
 import {
   MoreHorizontal,
   PanelLeftClose,
@@ -18,9 +17,7 @@ import { useFilesStore } from "@/lib/store/files-store";
 import { displayTitle, type FileMeta, sortByRecent } from "@/lib/store/files";
 import { ConfirmDialog } from "./confirm-dialog";
 import { cardClass, shellBtnPrimary } from "./ui-classes";
-import { useStoredFlag } from "./use-stored-flag";
-
-const LS_SIDEBAR = "causalflow-ui-sidebar-collapsed";
+import { useFitAfterSwitch } from "./use-fit-after-switch";
 
 const timeFormat = new Intl.DateTimeFormat("zh-TW", {
   month: "numeric",
@@ -32,28 +29,27 @@ const timeFormat = new Intl.DateTimeFormat("zh-TW", {
 const iconBtn =
   "causal-ui nodrag nopan flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]";
 
-export function FileSidebar() {
+export function FileSidebar({
+  collapsed,
+  onCollapsedChange: setCollapsed,
+}: {
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+}) {
   const formId = useId();
-  const { fitView } = useReactFlow();
+  const withFit = useFitAfterSwitch();
   const files = useFilesStore((s) => s.files);
   const activeId = useFilesStore((s) => s.activeId);
   const title = useCausalStore((s) => s.title);
   const setTitle = useCausalStore((s) => s.setTitle);
   const commit = useCausalStore((s) => s.commit);
   const dirtyRef = useRef(false);
-  const [collapsed, setCollapsed] = useStoredFlag(LS_SIDEBAR, false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<FileMeta | null>(null);
-
-  // 切換／新增後讓新圖入鏡
-  const afterSwitch = (ok: boolean) => {
-    if (ok) {
-      requestAnimationFrame(() => void fitView({ padding: 0.2, duration: 0 }));
-    }
-  };
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const open = (id: string) => {
-    if (id !== activeId) afterSwitch(useFilesStore.getState().openFile(id));
+    if (id !== activeId) withFit(() => void useFilesStore.getState().openFile(id));
   };
 
   if (collapsed) {
@@ -116,7 +112,7 @@ export function FileSidebar() {
         />
         <button
           type="button"
-          onClick={() => afterSwitch(useFilesStore.getState().createFile() !== null)}
+          onClick={() => withFit(() => void useFilesStore.getState().createFile())}
           className={`nodrag nopan w-full ${shellBtnPrimary}`}
         >
           ＋ 新檔案
@@ -134,26 +130,26 @@ export function FileSidebar() {
             onStartRename={() => setRenamingId(file.id)}
             onEndRename={() => setRenamingId(null)}
             onDuplicate={() =>
-              afterSwitch(useFilesStore.getState().duplicateFile(file.id) !== null)
+              withFit(() => void useFilesStore.getState().duplicateFile(file.id))
             }
-            onDelete={() => setDeleting(file)}
+            onDelete={() => {
+              setDeleting(file);
+              setDeleteOpen(true);
+            }}
           />
         ))}
       </ul>
 
       <ConfirmDialog
-        open={deleting !== null}
-        onOpenChange={(o) => {
-          if (!o) setDeleting(null);
-        }}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         title={`刪除『${deleting ? displayTitle(deleting.title) : ""}』？`}
         description="刪除後無法復原。"
         confirmLabel="刪除"
         onConfirm={() => {
           if (!deleting) return;
-          const before = useFilesStore.getState().activeId;
-          useFilesStore.getState().deleteFile(deleting.id);
-          afterSwitch(useFilesStore.getState().activeId !== before);
+          const id = deleting.id;
+          withFit(() => useFilesStore.getState().deleteFile(id));
         }}
       />
     </div>

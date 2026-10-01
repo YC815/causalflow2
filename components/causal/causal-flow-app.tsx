@@ -10,7 +10,6 @@ import {
   type OnConnectEnd,
   ReactFlow,
   ReactFlowProvider,
-  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Map as MapIcon } from "lucide-react";
@@ -36,11 +35,13 @@ import { Toolbar } from "./toolbar";
 import { modKeyLabel } from "./ui-classes";
 import { hydrateFromStorage, useAutosave } from "./use-autosave";
 import { useCausalCommands } from "./use-causal-commands";
+import { useFitAfterSwitch } from "./use-fit-after-switch";
 import { useHotkeys } from "./use-hotkeys";
 import { useStoredFlag } from "./use-stored-flag";
 
 const nodeTypes = { causal: CausalNode };
 const edgeTypes = { causal: CausalEdge };
+const LS_SIDEBAR = "causalflow-ui-sidebar-collapsed";
 const LS_MINIMAP = "causalflow-ui-minimap-hidden";
 
 function asSide(h: string | null | undefined): HandleSide | undefined {
@@ -79,9 +80,9 @@ function FlowCanvas() {
   const reconnectingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commands = useCausalCommands(flowWrapRef);
-  const { fitView } = useReactFlow();
   const files = useFilesStore((s) => s.files);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useStoredFlag(LS_SIDEBAR, false);
   const [minimapHidden, setMinimapHidden] = useStoredFlag(LS_MINIMAP, false);
   const selectNodes = useCausalStore((s) => s.selectNodes);
   const selectEdge = useCausalStore((s) => s.selectEdge);
@@ -93,18 +94,7 @@ function FlowCanvas() {
   const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
   useHotkeys(commands, { openPalette, openShortcuts });
 
-  // 切換／新增檔案後讓新圖入鏡
-  const fitSoon = useCallback(() => {
-    requestAnimationFrame(() => void fitView({ padding: 0.2, duration: 0 }));
-  }, [fitView]);
-  const withFit = useCallback(
-    (fn: () => void) => {
-      const before = useFilesStore.getState().activeId;
-      fn();
-      if (useFilesStore.getState().activeId !== before) fitSoon();
-    },
-    [fitSoon],
-  );
+  const withFit = useFitAfterSwitch();
   const newFile = useCallback(
     () => withFit(commands.newFile),
     [withFit, commands],
@@ -251,7 +241,9 @@ function FlowCanvas() {
               color="var(--causal-dot)"
             />
             <Controls
-              className="!border-[var(--causal-node-border)] !bg-[var(--causal-paper)] !shadow-md [&_button]:!fill-[var(--causal-ink)]"
+              className={`!border-[var(--causal-node-border)] !bg-[var(--causal-paper)] !shadow-md [&_button]:!fill-[var(--causal-ink)] ${
+                sidebarCollapsed ? "" : "sm:!ml-[283px]"
+              }`}
               showInteractive={false}
             >
               <ControlButton
@@ -265,7 +257,7 @@ function FlowCanvas() {
             {!minimapHidden && (
               <MiniMap
                 position="bottom-left"
-                style={{ marginLeft: 56 }}
+                style={{ marginLeft: sidebarCollapsed ? 56 : 324 }}
                 pannable
                 zoomable
                 nodeColor="#ffffff"
@@ -280,6 +272,8 @@ function FlowCanvas() {
       </CausalOrientationProvider>
 
       <Toolbar
+        sidebarCollapsed={sidebarCollapsed}
+        onSidebarCollapsedChange={setSidebarCollapsed}
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
         onNewFile={newFile}
