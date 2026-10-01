@@ -141,7 +141,11 @@ export function useCausalCommands(
           allRects(),
           Boolean(n.data.flipped),
         );
-        ensureVisible(store().addConnectedNode(n.id, pos, "downstream"));
+        ensureVisible(
+          store().addConnectedNode(n.id, pos, "downstream", {
+            flipped: Boolean(n.data.flipped),
+          }),
+        );
         return true;
       },
 
@@ -154,9 +158,11 @@ export function useCausalCommands(
           allRects(),
         );
         const upstream = store().edges.find((e) => e.target === n.id)?.source;
+        // 同層節點沿用目前節點的翻轉狀態
+        const flipped = Boolean(n.data.flipped);
         const id = upstream
-          ? store().addConnectedNode(upstream, pos, "downstream")
-          : store().addNode(pos, { edit: true });
+          ? store().addConnectedNode(upstream, pos, "downstream", { flipped })
+          : store().addNode(pos, { edit: true, flipped });
         ensureVisible(id);
         return true;
       },

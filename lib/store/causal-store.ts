@@ -76,12 +76,12 @@ function hasEdge(edges: FlowEdge[], source: string, target: string): boolean {
   return edges.some((e) => e.source === source && e.target === target);
 }
 
-function newNode(id: string, position: XYPosition): FlowNode {
+function newNode(id: string, position: XYPosition, flipped?: boolean): FlowNode {
   return {
     id,
     type: "causal",
     position,
-    data: { label: NEW_NODE_LABEL },
+    data: flipped ? { label: NEW_NODE_LABEL, flipped: true } : { label: NEW_NODE_LABEL },
     selected: true,
   };
 }
@@ -111,11 +111,12 @@ export type CausalState = {
   newBlank: () => void;
   setTitle: (title: string) => void;
   setDefaultPolarity: (polarity: CausalPolarity) => void;
-  addNode: (position: XYPosition, opts?: { edit?: boolean }) => string;
+  addNode: (position: XYPosition, opts?: { edit?: boolean; flipped?: boolean }) => string;
   addConnectedNode: (
     anchorId: string,
     position: XYPosition,
     side: "downstream" | "upstream",
+    opts?: { flipped?: boolean },
   ) => string;
   connect: (source: string, target: string) => boolean;
   updateNodeLabel: (id: string, label: string) => void;
@@ -216,7 +217,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       commit();
       const id = `n-${uid()}`;
       set((s) => ({
-        nodes: [...deselectNodes(s.nodes), newNode(id, position)],
+        nodes: [...deselectNodes(s.nodes), newNode(id, position, opts?.flipped)],
         edges: deselectEdges(s.edges),
         editing: opts?.edit ? { id, isNew: true } : null,
         editingSavedFuture: opts?.edit ? savedFuture : [],
@@ -224,7 +225,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       return id;
     },
 
-    addConnectedNode: (anchorId, position, side) => {
+    addConnectedNode: (anchorId, position, side, opts) => {
       const savedFuture = get().history.future;
       commit();
       const id = `n-${uid()}`;
@@ -237,7 +238,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         edgeDefaults(),
       );
       set((s) => ({
-        nodes: [...deselectNodes(s.nodes), newNode(id, position)],
+        nodes: [...deselectNodes(s.nodes), newNode(id, position, opts?.flipped)],
         edges: [...deselectEdges(s.edges), edge],
         editing: { id, isNew: true },
         editingSavedFuture: savedFuture,

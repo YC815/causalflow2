@@ -30,6 +30,17 @@ beforeEach(() => {
 });
 
 describe("causal store", () => {
+  it("new nodes inherit flipped only when requested", () => {
+    const a = s().addConnectedNode("a", { x: 0, y: 0 }, "downstream", { flipped: true });
+    expect(s().nodes.find((n) => n.id === a)?.data.flipped).toBe(true);
+    const b = s().addConnectedNode("a", { x: 0, y: 0 }, "downstream");
+    expect(s().nodes.find((n) => n.id === b)?.data).not.toHaveProperty("flipped");
+    const c = s().addNode({ x: 0, y: 0 }, { edit: true, flipped: true });
+    expect(s().nodes.find((n) => n.id === c)?.data.flipped).toBe(true);
+    const d = s().addNode({ x: 0, y: 0 });
+    expect(s().nodes.find((n) => n.id === d)?.data).not.toHaveProperty("flipped");
+  });
+
   it("addNode selects the new node and is undoable/redoable", () => {
     const id = s().addNode({ x: 1, y: 2 });
     expect(ids()).toContain(id);
