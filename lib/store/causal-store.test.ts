@@ -290,6 +290,11 @@ describe("edge sides", () => {
     expect(s().reconnectEdge("ab", { source: "b", target: "b" })).toBe(false);
     expect(s().history.past.length).toBe(before);
   });
+  it("reconnectEdge to identical endpoints is a no-op without history", () => {
+    const before = s().history.past.length;
+    expect(s().reconnectEdge("ab", { source: "a", target: "b", sourceHandle: "out", targetHandle: "in" })).toBe(false);
+    expect(s().history.past.length).toBe(before);
+  });
   it("toggleEdgeSide flips one end", () => {
     s().toggleEdgeSide("ab", "target");
     expect(s().edges.find((x) => x.id === "ab")!.targetHandle).toBe("out");

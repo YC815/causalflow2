@@ -296,6 +296,15 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         get().showToast(SELF_LOOP_MESSAGE);
         return false;
       }
+      const cur = get().edges.find((e) => e.id === id)!;
+      if (
+        cur.source === next.source &&
+        cur.target === next.target &&
+        cur.sourceHandle === (next.sourceHandle ?? "out") &&
+        cur.targetHandle === (next.targetHandle ?? "in")
+      ) {
+        return false; // 放回原位：不產生歷史
+      }
       const duplicate = get().edges.some(
         (e) =>
           e.id !== id && e.source === next.source && e.target === next.target,

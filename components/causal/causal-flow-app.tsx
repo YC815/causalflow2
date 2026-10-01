@@ -117,12 +117,13 @@ function FlowCanvas() {
       if (state.isValid || !state.fromNode || !isPaneTarget(event.target)) {
         return;
       }
-      // 所有接點皆為 source 型別，從哪個接點拖出都是往下游建立
+      // 從輸入側接點拖出 = 新增上游原因；從輸出側拖出 = 新增下游
+      const fromSide = asSide(state.fromHandle?.id) ?? "out";
       commands.addConnectedNodeAtScreen(
         state.fromNode.id,
         clientPoint(event),
-        "downstream",
-        asSide(state.fromHandle?.id),
+        fromSide === "in" ? "upstream" : "downstream",
+        fromSide,
       );
     },
     [commands],
