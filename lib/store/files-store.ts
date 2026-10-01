@@ -70,6 +70,13 @@ function serialize(doc: CausalJsonDocument, layout: CausalLayoutDirection) {
 const toast = (message: string) =>
   useCausalStore.getState().showToast(message);
 
+/** 匯出期間節點是暫時版面，任何檔案操作都會把它寫進檔案 */
+function blockedByExport(): boolean {
+  if (!useCausalStore.getState().exporting) return false;
+  toast("匯出中，請稍候");
+  return true;
+}
+
 export const useFilesStore = create<FilesState>()((set, get) => {
   /**
    * 以 storage 中的索引為準合併（其他分頁可能也改過索引），再寫回。
@@ -139,7 +146,8 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     /** 目前檔案即將被丟棄（刪除最後一個檔案）時不必先存 */
     skipSave = false,
   ): string | null => {
-    if (!storage || (!skipSave && !saveBeforeLeaving())) return null;
+    if (!storage || blockedByExport()) return null;
+    if (!skipSave && !saveBeforeLeaving()) return null;
     const id = newId();
     const ok =
       writeFileDoc(storage, id, doc) &&
@@ -175,6 +183,7 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     },
 
     openFile: (id) => {
+      if (blockedByExport()) return false;
       if (id === get().activeId) return true;
       if (!get().files.some((f) => f.id === id)) return false;
       if (!saveBeforeLeaving()) return false;
@@ -185,6 +194,7 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     createFile: (doc) => addFile(doc ?? blankDocument(), "LR"),
 
     renameFile: (id, title) => {
+      if (blockedByExport()) return;
       const t = title.trim();
       if (id === get().activeId) {
         // 與標題輸入框一致：可 undo
@@ -210,7 +220,7 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     },
 
     duplicateFile: (id) => {
-      if (!storage) return null;
+      if (!storage || blockedByExport()) return null;
       // 先存目前檔案，複製目前檔案時才會拿到最新內容
       if (!saveBeforeLeaving()) return null;
       const meta = get().files.find((f) => f.id === id);
@@ -223,26 +233,42 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     },
 
     deleteFile: (id) => {
-      if (!storage) return;
-      const before = get().files;
-      if (!before.some((f) => f.id === id)) return;
-      const wasActive = id === get().activeId;
-      const isLast = before.length === 1;
+      if (!storage || blockedByExport()) return;
+      if (!get().files.some((f) => f.id === id)) return;
+      // 以 storage 索引判斷是否為最後一個（其他分頁可能已刪掉別的檔案）
+      const remaining = (s: FileStorage) => {
+        const stored = loadIndex(s);
+        return (stored.length > 0 ? stored : get().files).filter(
+          (f) => f.id !== id,
+        );
+      };
       // 最後一個檔案：先建好空白檔再刪舊檔，索引絕不落成空陣列
-      if (isLast && !addFile(blankDocument(), "LR", wasActive)) return;
+      if (
+        remaining(storage).length === 0 &&
+        !addFile(blankDocument(), "LR", id === get().activeId)
+      ) {
+        return;
+      }
+      const files = remaining(storage);
+      // 先寫索引再刪內容：索引寫失敗時內容仍完整
+      if (files.length === 0 || !saveIndex(storage, files)) {
+        toast("刪除失敗");
+        return;
+      }
+      const reopen = id === get().activeId;
+      // 先放掉 activeId，避免把畫面內容存回已刪除的檔案
+      set({ files, activeId: reopen ? null : get().activeId });
       removeFile(storage, id);
       lastSaved.delete(id);
-      const reopen = wasActive && !isLast;
-      // 先放掉 activeId，避免把畫面內容存回已刪除的檔案
-      if (reopen) set({ activeId: null });
-      updateIndex((files) => files.filter((f) => f.id !== id));
-      if (reopen) load(sortByRecent(get().files)[0].id);
+      if (reopen) load(sortByRecent(files)[0].id);
     },
 
     saveActive: () => {
       const id = get().activeId;
       // 未初始化時絕不吞掉存檔：回報失敗讓呼叫端提示
       if (!storage || !id) return false;
+      // 匯出期間的版面是暫時的，不能存（autosave 會稍後重試）
+      if (useCausalStore.getState().exporting) return false;
       const { doc, layout } = currentDocument();
       const key = serialize(doc, layout);
       if (lastSaved.get(id) === key) return true;

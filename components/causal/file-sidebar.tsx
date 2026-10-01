@@ -26,6 +26,9 @@ const timeFormat = new Intl.DateTimeFormat("zh-TW", {
   minute: "2-digit",
 });
 
+/** 讓焦點回到 body，畫布快捷鍵立即可用 */
+const blurActive = () => (document.activeElement as HTMLElement | null)?.blur();
+
 const iconBtn =
   "causal-ui nodrag nopan flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]";
 
@@ -43,13 +46,17 @@ export function FileSidebar({
   const title = useCausalStore((s) => s.title);
   const setTitle = useCausalStore((s) => s.setTitle);
   const commit = useCausalStore((s) => s.commit);
+  const exporting = useCausalStore((s) => s.exporting);
   const dirtyRef = useRef(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<FileMeta | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const open = (id: string) => {
-    if (id !== activeId) withFit(() => void useFilesStore.getState().openFile(id));
+    if (id === activeId) return;
+    withFit(() => {
+      if (useFilesStore.getState().openFile(id)) blurActive();
+    });
   };
 
   if (collapsed) {
@@ -73,7 +80,10 @@ export function FileSidebar({
     <div
       role="navigation"
       aria-label="檔案"
-      className={`absolute bottom-3 left-3 top-3 z-10 flex w-64 max-w-[calc(100vw-1.5rem)] flex-col ${cardClass}`}
+      aria-busy={exporting || undefined}
+      className={`absolute bottom-3 left-3 top-3 z-10 flex w-64 max-w-[calc(100vw-1.5rem)] flex-col ${cardClass} ${
+        exporting ? "pointer-events-none opacity-60" : ""
+      }`}
     >
       <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-3">
         <h1 className="causal-display text-lg leading-tight tracking-tight text-[var(--causal-ink)]">
@@ -112,7 +122,11 @@ export function FileSidebar({
         />
         <button
           type="button"
-          onClick={() => withFit(() => void useFilesStore.getState().createFile())}
+          onClick={() =>
+            withFit(() => {
+              if (useFilesStore.getState().createFile() !== null) blurActive();
+            })
+          }
           className={`nodrag nopan w-full ${shellBtnPrimary}`}
         >
           ＋ 新檔案
@@ -130,7 +144,11 @@ export function FileSidebar({
             onStartRename={() => setRenamingId(file.id)}
             onEndRename={() => setRenamingId(null)}
             onDuplicate={() =>
-              withFit(() => void useFilesStore.getState().duplicateFile(file.id))
+              withFit(() => {
+                if (useFilesStore.getState().duplicateFile(file.id) !== null) {
+                  blurActive();
+                }
+              })
             }
             onDelete={() => {
               setDeleting(file);

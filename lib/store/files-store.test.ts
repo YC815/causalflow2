@@ -432,6 +432,101 @@ describe("files store", () => {
     );
   });
 
+  describe("while exporting", () => {
+    const snapshot = () => Object.fromEntries(storage.data);
+
+    it("openFile is blocked and nothing changes", () => {
+      init();
+      const a = f().activeId!;
+      const b = f().createFile(DOC)!;
+      f().openFile(a);
+      c().addNode({ x: 0, y: 0 });
+      const nodes = c().nodes;
+      const before = snapshot();
+      useCausalStore.setState({ exporting: true });
+      expect(f().openFile(b)).toBe(false);
+      expect(f().activeId).toBe(a);
+      expect(c().nodes).toBe(nodes);
+      expect(snapshot()).toEqual(before);
+      expect(c().toast).toBe("匯出中，請稍候");
+    });
+
+    it("createFile and duplicateFile return null without new keys", () => {
+      init();
+      const a = f().activeId!;
+      const before = snapshot();
+      useCausalStore.setState({ exporting: true });
+      expect(f().createFile(DOC)).toBeNull();
+      expect(f().duplicateFile(a)).toBeNull();
+      expect(f().activeId).toBe(a);
+      expect(f().files).toHaveLength(1);
+      expect(snapshot()).toEqual(before);
+    });
+
+    it("deleteFile and renameFile change nothing", () => {
+      init();
+      const a = f().activeId!;
+      const b = f().createFile(DOC)!;
+      const files = f().files;
+      const title = c().title;
+      const before = snapshot();
+      useCausalStore.setState({ exporting: true });
+      f().deleteFile(a);
+      f().deleteFile(b);
+      f().renameFile(a, "改名");
+      f().renameFile(b, "改名");
+      expect(f().files).toEqual(files);
+      expect(f().activeId).toBe(b);
+      expect(c().title).toBe(title);
+      expect(snapshot()).toEqual(before);
+    });
+
+    it("saveActive returns false without writing", () => {
+      init();
+      c().addNode({ x: 0, y: 0 });
+      const before = snapshot();
+      useCausalStore.setState({ exporting: true });
+      expect(f().saveActive()).toBe(false);
+      expect(snapshot()).toEqual(before);
+      useCausalStore.setState({ exporting: false });
+      expect(f().saveActive()).toBe(true);
+    });
+  });
+
+  it("deleteFile handles another tab having removed the other files", () => {
+    init();
+    const a = f().activeId!;
+    const b = f().createFile(DOC)!;
+    // 另一分頁刪掉了 a：儲存的索引只剩 b，但記憶體清單仍有兩筆
+    saveIndex(storage, loadIndex(storage).filter((m) => m.id !== a));
+    expect(f().files).toHaveLength(2);
+    expect(() => f().deleteFile(b)).not.toThrow();
+    const index = loadIndex(storage);
+    expect(index).toHaveLength(1);
+    expect(index[0].id).not.toBe(b);
+    expect(f().activeId).toBe(index[0].id);
+    expect(f().files.map((m) => m.id)).toEqual([index[0].id]);
+    expect(storage.getItem(fileDocKey(b))).toBeNull();
+  });
+
+  it("deleteFile keeps content when the index write fails", () => {
+    init();
+    const a = f().activeId!;
+    const b = f().createFile(DOC)!;
+    const before = Object.fromEntries(storage.data);
+    storage.failOn = (key) => key === INDEX_KEY;
+    f().deleteFile(a);
+    expect(Object.fromEntries(storage.data)).toEqual(before);
+    expect(f().files.map((m) => m.id).sort()).toEqual([a, b].sort());
+    expect(f().activeId).toBe(b);
+    expect(c().toast).toBe("刪除失敗");
+    // 刪除目前檔案也一樣
+    f().deleteFile(b);
+    expect(Object.fromEntries(storage.data)).toEqual(before);
+    expect(f().activeId).toBe(b);
+    expect(c().title).toBe("匯入");
+  });
+
   it("distinguishes a missing doc from a corrupt one", () => {
     init();
     const a = f().activeId!;
