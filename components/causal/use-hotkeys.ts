@@ -40,6 +40,8 @@ export function useHotkeys(
     const onKeyDown = (e: KeyboardEvent) => {
       if (useCausalStore.getState().exporting) return;
       if (e.isComposing || isOwnedByOtherUi(e.target)) return;
+      // 節點正在（或即將進入）編輯：焦點可能還在 body，全域快捷鍵不作用
+      if (useCausalStore.getState().editing) return;
       // 按住 Enter／Tab 會連環建節點；只有方向鍵允許連發
       if (e.repeat && !(e.key in ARROWS)) return;
 
@@ -83,6 +85,7 @@ export function useHotkeys(
     const onCopy = (e: ClipboardEvent) => {
       if (useCausalStore.getState().exporting) return;
       if (isOwnedByOtherUi(e.target)) return;
+      if (useCausalStore.getState().editing) return;
       const frag = commands.copySelection();
       if (!frag || !e.clipboardData) return;
       e.preventDefault();
@@ -92,6 +95,7 @@ export function useHotkeys(
     const onCut = (e: ClipboardEvent) => {
       if (useCausalStore.getState().exporting) return;
       if (isOwnedByOtherUi(e.target)) return;
+      if (useCausalStore.getState().editing) return;
       const frag = commands.copySelection();
       if (!frag || !e.clipboardData) return;
       e.preventDefault();
@@ -102,6 +106,7 @@ export function useHotkeys(
     const onPaste = (e: ClipboardEvent) => {
       if (useCausalStore.getState().exporting) return;
       if (isOwnedByOtherUi(e.target)) return;
+      if (useCausalStore.getState().editing) return;
       let doc: CausalJsonDocument | null = null;
       try {
         doc = parseCausalJson(e.clipboardData?.getData("text/plain") ?? "");

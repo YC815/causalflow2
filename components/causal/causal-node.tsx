@@ -19,27 +19,18 @@ export type CausalNodeData = {
   flipped?: boolean;
 };
 
-function NodeLabelEditor({ initial }: { initial: string }) {
+function NodeLabelEditor({ initial, ready }: { initial: string; ready: boolean }) {
   const finishEditing = useCausalStore((s) => s.finishEditing);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
-    // 新節點量測完成前是 visibility:hidden，此時 focus() 會失敗；每 30ms 重試直到成功
+    // 新節點量測完成前是 visibility:hidden，focus() 會失敗；量測完（width > 0）才聚焦
+    if (!ready) return;
     const el = ref.current;
     if (!el) return;
-    let timer = 0;
-    let tries = 0;
-    const tryFocus = () => {
-      el.focus({ preventScroll: true });
-      if (document.activeElement === el) {
-        el.select();
-        return;
-      }
-      if (++tries < 40) timer = window.setTimeout(tryFocus, 30);
-    };
-    tryFocus();
-    return () => window.clearTimeout(timer);
-  }, []);
+    el.focus({ preventScroll: true });
+    el.select();
+  }, [ready]);
 
   return (
     <textarea
@@ -68,6 +59,7 @@ export function CausalNode({
   id,
   data,
   selected,
+  width,
 }: NodeProps<Node<CausalNodeData, "causal">>) {
   const orientation = useCausalFlowOrientation();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -125,7 +117,7 @@ export function CausalNode({
         className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-white"
       />
       {editing ? (
-        <NodeLabelEditor initial={data.label} />
+        <NodeLabelEditor initial={data.label} ready={(width ?? 0) > 0} />
       ) : (
         <p className="causal-ui whitespace-pre-wrap text-[0.95rem] leading-snug text-[var(--causal-ink)]">
           {data.label}
