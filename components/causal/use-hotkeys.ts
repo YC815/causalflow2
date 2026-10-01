@@ -75,9 +75,6 @@ export function useHotkeys(
       }
       if (e.key === "-") return consume(commands.setSelectedEdgePolarity("negative"));
       if (e.key === "0") return consume(commands.setSelectedEdgePolarity("neutral"));
-      if (e.key.toLowerCase() === "b") {
-        return consume(commands.toggleSelectedEdgeDirection());
-      }
     };
 
     // 走原生剪貼簿事件：讀取不需權限詢問，且可跨分頁貼上 CausalFlow JSON

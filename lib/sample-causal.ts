@@ -28,7 +28,7 @@ export const SAMPLE_CAUSAL_DOCUMENT: CausalJsonDocument = {
       id: "e-traffic-mood",
       source: "traffic",
       target: "mood",
-      direction: "bidirectional",
+      direction: "one-way",
       polarity: "neutral",
     },
   ],

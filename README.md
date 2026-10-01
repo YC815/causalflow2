@@ -1,6 +1,6 @@
 # CausalFlow
 
-繪製邏輯因果圖：節點、單／雙向連線、正／負／未指定極性，匯入匯出 JSON／PNG／PDF。內容自動存在瀏覽器 localStorage。
+繪製邏輯因果圖：節點、單向連線、正／負／未指定極性，匯入匯出 JSON／PNG／PDF。內容自動存在瀏覽器 localStorage。
 
 ## 開發
 
@@ -19,7 +19,7 @@ pnpm build
 | 編輯文字 | 雙擊節點、F2 或 Space；Enter 確認、Shift+Enter 換行、Esc 取消 |
 | 建立下游／同層節點 | Tab／Enter |
 | 切換選取 | 方向鍵 |
-| 連線極性 | 選取連線後按 `+` `-` `0`，`B` 切單／雙向 |
+| 連線極性 | 選取連線後按 `+` `-` `0` |
 | 復原／重做 | ⌘/Ctrl+Z、⌘/Ctrl+Shift+Z、⌘/Ctrl+Y |
 | 全選 | ⌘/Ctrl+A |
 | 複製／剪下／貼上／副本 | ⌘/Ctrl+C／X／V／D（可跨分頁貼上） |

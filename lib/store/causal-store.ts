@@ -91,7 +91,6 @@ export type CausalState = {
   title: string;
   layoutDirection: CausalLayoutDirection;
   defaultPolarity: CausalPolarity;
-  defaultBidirectional: boolean;
   history: History<Snapshot>;
   editing: EditingState;
   editingSavedFuture: Snapshot[];
@@ -111,7 +110,6 @@ export type CausalState = {
   newBlank: () => void;
   setTitle: (title: string) => void;
   setDefaultPolarity: (polarity: CausalPolarity) => void;
-  setDefaultBidirectional: (bidirectional: boolean) => void;
   addNode: (position: XYPosition, opts?: { edit?: boolean }) => string;
   addConnectedNode: (
     anchorId: string,
@@ -150,7 +148,6 @@ export const useCausalStore = create<CausalState>()((set, get) => {
   const commit = () => set((s) => ({ history: record(s.history, snapshot()) }));
 
   const edgeDefaults = (): CausalEdgeData => ({
-    bidirectional: get().defaultBidirectional,
     polarity: get().defaultPolarity,
   });
 
@@ -160,7 +157,6 @@ export const useCausalStore = create<CausalState>()((set, get) => {
     title: "",
     layoutDirection: "LR",
     defaultPolarity: "positive",
-    defaultBidirectional: false,
     history: emptyHistory<Snapshot>(),
     editing: null,
     editingSavedFuture: [],
@@ -210,8 +206,6 @@ export const useCausalStore = create<CausalState>()((set, get) => {
 
     setTitle: (title) => set({ title }),
     setDefaultPolarity: (defaultPolarity) => set({ defaultPolarity }),
-    setDefaultBidirectional: (defaultBidirectional) =>
-      set({ defaultBidirectional }),
 
     addNode: (position, opts) => {
       const savedFuture = get().history.future;
@@ -288,7 +282,6 @@ export const useCausalStore = create<CausalState>()((set, get) => {
             : withMarkers({
                 ...e,
                 data: {
-                  bidirectional: e.data?.bidirectional ?? false,
                   polarity: e.data?.polarity ?? "positive",
                   ...patch,
                 },

@@ -29,16 +29,14 @@ export function jsonNodeToFlow(n: CausalJsonNode): Node<CausalNodeData> {
 }
 
 export function jsonEdgeToFlow(e: CausalJsonEdge): Edge<CausalEdgeData> {
-  const bidirectional = e.direction === "bidirectional";
   const polarity = e.polarity;
   return {
     id: e.id,
     source: e.source,
     target: e.target,
     type: "causal",
-    data: { bidirectional, polarity },
+    data: { polarity },
     markerEnd: marker(polarity),
-    markerStart: bidirectional ? marker(polarity) : undefined,
   };
 }
 
@@ -67,15 +65,12 @@ export function flowToDocument(
       y: n.position.y,
     })),
     edges: edges.map((e) => {
-      const data = e.data ?? {
-        bidirectional: false,
-        polarity: "positive" as const,
-      };
+      const data = e.data ?? { polarity: "positive" as const };
       return {
         id: e.id,
         source: e.source,
         target: e.target,
-        direction: data.bidirectional ? "bidirectional" : "one-way",
+        direction: "one-way" as const,
         polarity: data.polarity,
       };
     }),
@@ -96,22 +91,15 @@ export function newFlowEdge(
     type: "causal",
     data: { ...defaults },
     markerEnd: marker(defaults.polarity),
-    markerStart: defaults.bidirectional
-      ? marker(defaults.polarity)
-      : undefined,
   };
 }
 
-/** 在變更 data 後同步箭頭顏色與雙向標記 */
+/** 在變更 data 後同步箭頭顏色 */
 export function withMarkers(e: Edge<CausalEdgeData>): Edge<CausalEdgeData> {
-  const d = e.data ?? {
-    bidirectional: false,
-    polarity: "positive" as const,
-  };
+  const d = e.data ?? { polarity: "positive" as const };
   return {
     ...e,
     data: d,
     markerEnd: marker(d.polarity),
-    markerStart: d.bidirectional ? marker(d.polarity) : undefined,
   };
 }

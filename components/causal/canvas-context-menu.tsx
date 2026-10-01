@@ -85,10 +85,6 @@ function MenuItems({
             <ContextMenuShortcut>0</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onSelect={() => commands.toggleSelectedEdgeDirection()}>
-            切換單／雙向
-            <ContextMenuShortcut>B</ContextMenuShortcut>
-          </ContextMenuItem>
           <ContextMenuItem onSelect={commands.reverseSelectedEdge}>
             反轉方向
           </ContextMenuItem>

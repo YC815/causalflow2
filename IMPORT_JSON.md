@@ -53,7 +53,7 @@
 | `id` | `string` | 是 | 非空白字串，建議唯一 |
 | `source` | `string` | 是 | 必須等於某個節點 `id` |
 | `target` | `string` | 是 | 必須等於某個節點 `id` |
-| `direction` | `string` | 是 | `"one-way"` 或 `"bidirectional"` |
+| `direction` | `string` | 否 | 固定 `"one-way"`（可省略；舊檔的 `"bidirectional"` 讀入時視為單向） |
 | `polarity` | `string` | 是 | `"positive"` / `"negative"` / `"neutral"` |
 
 語意：`source -> target`。
@@ -80,8 +80,7 @@
 - causalflowVersion 固定為數字 1
 - 根物件包含 title(可省略)、nodes、edges
 - nodes: 每個節點都有 id, label, x, y
-- edges: 每條邊都有 id, source, target, direction, polarity
-- direction 只能是 one-way 或 bidirectional
+- edges: 每條邊都有 id, source, target, polarity（direction 可省略，若提供只能是 one-way）
 - polarity 只能是 positive / negative / neutral
 - 所有 edge 的 source/target 都必須引用已存在的 node id
 - 座標請給出可讀版面的數值（例如 x,y 間距 140~280）

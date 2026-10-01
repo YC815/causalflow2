@@ -40,7 +40,6 @@ function rows(mod: string): { group: string; items: Row[] }[] {
         { keys: [["+"]], label: "正相關" },
         { keys: [["-"]], label: "負相關" },
         { keys: [["0"]], label: "未指定" },
-        { keys: [["B"]], label: "切換單／雙向" },
       ],
     },
     {

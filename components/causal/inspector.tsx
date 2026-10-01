@@ -80,7 +80,6 @@ export function Inspector() {
 
   if (!selectedEdge) return null;
   const polarity = selectedEdge.data?.polarity ?? "positive";
-  const bidirectional = selectedEdge.data?.bidirectional ?? false;
   return (
     <div className="border-t border-[var(--causal-node-border)] pt-2.5">
       <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
@@ -90,15 +89,6 @@ export function Inspector() {
         {selectedEdge.source} → {selectedEdge.target}
       </p>
       <div className="mt-1.5 flex flex-wrap gap-1">
-        <button
-          type="button"
-          onClick={() =>
-            updateEdge(selectedEdge.id, { bidirectional: !bidirectional })
-          }
-          className={chipClass(false, "")}
-        >
-          {bidirectional ? "改單向" : "改雙向"}
-        </button>
         {POLARITY_OPTIONS.map((o) => (
           <button
             key={o.value}

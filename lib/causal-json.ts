@@ -5,7 +5,7 @@
 
 export const CAUSAL_JSON_VERSION = 1 as const;
 
-export type CausalDirection = "one-way" | "bidirectional";
+export type CausalDirection = "one-way";
 /** 正／負相關，或「未指定」（僅表示有連結、尚未標正負） */
 export type CausalPolarity = "positive" | "negative" | "neutral";
 
@@ -95,12 +95,17 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
     if (!isRecord(e)) {
       throw new CausalJsonError(`edges[${i}] 必須為物件`);
     }
-    const direction = asString(e.direction, `edges[${i}].direction`);
-    if (direction !== "one-way" && direction !== "bidirectional") {
+    // 因果圖只有單向；舊檔的 "bidirectional" 讀入時視為單向
+    if (
+      e.direction !== undefined &&
+      e.direction !== "one-way" &&
+      e.direction !== "bidirectional"
+    ) {
       throw new CausalJsonError(
-        `edges[${i}].direction 必須為 "one-way" 或 "bidirectional"`,
+        `edges[${i}].direction 若提供必須為 "one-way"`,
       );
     }
+    const direction: CausalDirection = "one-way";
     const polarity = asString(e.polarity, `edges[${i}].polarity`);
     if (
       polarity !== "positive" &&
@@ -170,7 +175,7 @@ edges[] 每個元素：
 - id: string（非空白）
 - source: string（必須存在於 nodes[].id）
 - target: string（必須存在於 nodes[].id）
-- direction: "one-way" | "bidirectional"
+- direction: "one-way"（選填，可省略；因果圖只有單向）
 - polarity: "positive" | "negative" | "neutral"
 
 可直接給 AI 的輸出要求：

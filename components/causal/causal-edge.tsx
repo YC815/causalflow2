@@ -6,7 +6,6 @@ import type { CausalPolarity } from "@/lib/causal-json";
 import { CAUSAL_EDGE_STROKE_HEX } from "@/lib/causal-edge-palette";
 
 export type CausalEdgeData = {
-  bidirectional: boolean;
   polarity: CausalPolarity;
 };
 
@@ -84,12 +83,10 @@ export function CausalEdge({
   sourcePosition,
   targetPosition,
   markerEnd,
-  markerStart,
   data,
   selected,
 }: EdgeProps) {
   const polarity = normalizePolarity(data);
-  const bidirectional = Boolean(data?.bidirectional);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -112,7 +109,6 @@ export function CausalEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        markerStart={bidirectional ? markerStart : undefined}
         style={{
           stroke,
           strokeWidth: selected ? 2.75 : 2,

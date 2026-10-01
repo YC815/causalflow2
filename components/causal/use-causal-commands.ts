@@ -230,14 +230,6 @@ export function useCausalCommands(
         return true;
       },
 
-      toggleSelectedEdgeDirection: (): boolean => {
-        const id = singleSelectedEdgeId();
-        if (!id) return false;
-        const edge = store().edges.find((e) => e.id === id);
-        store().updateEdge(id, { bidirectional: !edge?.data?.bidirectional });
-        return true;
-      },
-
       reverseSelectedEdge: () => {
         const id = singleSelectedEdgeId();
         if (id) store().reverseEdge(id);

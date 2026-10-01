@@ -15,7 +15,7 @@ const DOC: CausalJsonDocument = {
   ],
   edges: [
     { id: "ab", source: "a", target: "b", direction: "one-way", polarity: "positive" },
-    { id: "bc", source: "b", target: "c", direction: "bidirectional", polarity: "negative" },
+    { id: "bc", source: "b", target: "c", direction: "one-way", polarity: "negative" },
   ],
 };
 
@@ -51,7 +51,7 @@ describe("instantiateFragment", () => {
       ["n-s1-0", "n-s1-1"],
       ["n-s1-1", "n-s1-2"],
     ]);
-    expect(edges[1].data).toEqual({ bidirectional: true, polarity: "negative" });
+    expect(edges[1].data).toEqual({ polarity: "negative" });
     expect(new Set(edges.map((e) => e.id)).size).toBe(2);
   });
 

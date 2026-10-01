@@ -128,11 +128,7 @@ function ToolsPanel({
   const canRedo = useCausalStore((s) => s.history.future.length > 0);
   const exporting = useCausalStore((s) => s.exporting);
   const defaultPolarity = useCausalStore((s) => s.defaultPolarity);
-  const defaultBidirectional = useCausalStore((s) => s.defaultBidirectional);
   const setDefaultPolarity = useCausalStore((s) => s.setDefaultPolarity);
-  const setDefaultBidirectional = useCausalStore(
-    (s) => s.setDefaultBidirectional,
-  );
   const mod = modKeyLabel();
 
   if (collapsed) {
@@ -263,20 +259,6 @@ function ToolsPanel({
             新連線預設
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => setDefaultBidirectional(false)}
-              className={chipClass(!defaultBidirectional, "bg-[var(--causal-accent-muted)]")}
-            >
-              單向
-            </button>
-            <button
-              type="button"
-              onClick={() => setDefaultBidirectional(true)}
-              className={chipClass(defaultBidirectional, "bg-[var(--causal-accent-muted)]")}
-            >
-              雙向
-            </button>
             {POLARITY_OPTIONS.map((o) => (
               <button
                 key={o.value}
