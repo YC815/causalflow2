@@ -5,6 +5,9 @@
 
 export const CAUSAL_JSON_VERSION = 1 as const;
 
+/** 連線接在節點的輸入側或輸出側 */
+export type HandleSide = "in" | "out";
+
 export type CausalDirection = "one-way";
 /** 正／負相關，或「未指定」（僅表示有連結、尚未標正負） */
 export type CausalPolarity = "positive" | "negative" | "neutral";
@@ -24,6 +27,9 @@ export type CausalJsonEdge = {
   direction: CausalDirection;
   polarity: CausalPolarity;
   bend?: { dx: number; dy: number };
+  /** 只保留非預設值（預設 source 用 out、target 用 in） */
+  sourceSide?: "in";
+  targetSide?: "out";
 };
 
 export type CausalJsonDocument = {
@@ -143,6 +149,12 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
         dy: asNumber(e.bend.dy, `edges[${i}].bend.dy`),
       };
     }
+    for (const key of ["sourceSide", "targetSide"] as const) {
+      const v = e[key];
+      if (v !== undefined && v !== "in" && v !== "out") {
+        throw new CausalJsonError(`edges[${i}].${key} 必須為 "in" 或 "out"`);
+      }
+    }
     return {
       id: asString(e.id, `edges[${i}].id`),
       source,
@@ -150,6 +162,8 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
       direction: direction as CausalDirection,
       polarity: polarity as CausalPolarity,
       ...(bend ? { bend } : {}),
+      ...(e.sourceSide === "in" ? { sourceSide: "in" as const } : {}),
+      ...(e.targetSide === "out" ? { targetSide: "out" as const } : {}),
     };
   });
 
@@ -199,6 +213,7 @@ edges[] 每個元素：
 - direction: "one-way"（選填，可省略；因果圖只有單向）
 - polarity: "positive" | "negative" | "neutral"
 - bend: { "dx": number, "dy": number }（選填；連線彎曲，通常不需提供）
+- sourceSide / targetSide: "in" | "out"（選填；連線接在節點的輸入側或輸出側，預設 source 用 out、target 用 in）
 
 可直接給 AI 的輸出要求：
 「請輸出可直接匯入 CausalFlow 的純 JSON（不要 Markdown code block），並嚴格符合以上欄位與枚舉。」

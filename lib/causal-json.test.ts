@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { flowToDocument, jsonEdgeToFlow } from "@/components/causal/flow-adapters";
 import { parseCausalJson, stringifyCausalJson } from "./causal-json";
 
 const base = (edge: Record<string, unknown>) =>
@@ -52,5 +53,41 @@ describe("parseCausalJson bend/flipped", () => {
     expect(() => parseCausalJson(doc({}, { bend: { dx: "1", dy: 0 } }))).toThrow();
     expect(() => parseCausalJson(doc({}, { bend: [1, 2] }))).toThrow();
     expect(() => parseCausalJson(doc({ flipped: "yes" }, {}))).toThrow();
+  });
+});
+
+describe("parseCausalJson sides", () => {
+  it("keeps non-default sides", () => {
+    const e = parseCausalJson(base({ sourceSide: "in", targetSide: "out" })).edges[0];
+    expect(e.sourceSide).toBe("in");
+    expect(e.targetSide).toBe("out");
+  });
+  it("drops default sides", () => {
+    const e = parseCausalJson(base({ sourceSide: "out", targetSide: "in" })).edges[0];
+    expect("sourceSide" in e).toBe(false);
+    expect("targetSide" in e).toBe(false);
+  });
+  it("rejects invalid sides", () => {
+    expect(() => parseCausalJson(base({ sourceSide: "left" }))).toThrow();
+    expect(() => parseCausalJson(base({ targetSide: 1 }))).toThrow();
+  });
+});
+
+describe("edge side adapters", () => {
+  it("round-trips sides and omits defaults", () => {
+    const flow = jsonEdgeToFlow({
+      id: "ab", source: "a", target: "b", direction: "one-way", polarity: "positive", sourceSide: "in",
+    });
+    expect([flow.sourceHandle, flow.targetHandle]).toEqual(["in", "in"]);
+    const plain = jsonEdgeToFlow({
+      id: "ab", source: "a", target: "b", direction: "one-way", polarity: "positive",
+    });
+    expect([plain.sourceHandle, plain.targetHandle]).toEqual(["out", "in"]);
+    const [e1] = flowToDocument([], [flow]).edges;
+    expect(e1.sourceSide).toBe("in");
+    expect("targetSide" in e1).toBe(false);
+    const [e2] = flowToDocument([], [plain]).edges;
+    expect("sourceSide" in e2).toBe(false);
+    expect("targetSide" in e2).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { extractFragment } from "@/lib/clipboard";
 import {
   DUPLICATE_EDGE_MESSAGE,
   NEW_NODE_LABEL,
+  SELF_LOOP_MESSAGE,
   useCausalStore,
 } from "./causal-store";
 
@@ -261,5 +262,49 @@ describe("bend and flip", () => {
     expect(s().nodes.find((n) => n.id === "a")?.data.flipped).toBe(true);
     s().undo();
     expect(s().edges[0].data?.bend).toEqual({ dx: 5, dy: 6 });
+  });
+});
+
+describe("edge sides", () => {
+  it("edges loaded from JSON carry default handles", () => {
+    const e = s().edges.find((x) => x.id === "ab")!;
+    expect([e.sourceHandle, e.targetHandle]).toEqual(["out", "in"]);
+  });
+  it("connect stores sides and rejects self loops", () => {
+    expect(s().connect("b", "c", { source: "in", target: "out" })).toBe(true);
+    const e = s().edges.find((x) => x.source === "b" && x.target === "c")!;
+    expect([e.sourceHandle, e.targetHandle]).toEqual(["in", "out"]);
+    const before = s().history.past.length;
+    expect(s().connect("a", "a")).toBe(false);
+    expect(s().toast).toBe(SELF_LOOP_MESSAGE);
+    expect(s().history.past.length).toBe(before);
+  });
+  it("reconnectEdge moves an end, is undoable, and rejects duplicates and self loops", () => {
+    expect(s().reconnectEdge("ab", { source: "a", target: "b", sourceHandle: "out", targetHandle: "out" })).toBe(true);
+    expect(s().edges.find((x) => x.id === "ab")!.targetHandle).toBe("out");
+    s().undo();
+    expect(s().edges.find((x) => x.id === "ab")!.targetHandle).toBe("in");
+    s().connect("a", "c");
+    const before = s().history.past.length;
+    expect(s().reconnectEdge("ab", { source: "a", target: "c" })).toBe(false);
+    expect(s().reconnectEdge("ab", { source: "b", target: "b" })).toBe(false);
+    expect(s().history.past.length).toBe(before);
+  });
+  it("toggleEdgeSide flips one end", () => {
+    s().toggleEdgeSide("ab", "target");
+    expect(s().edges.find((x) => x.id === "ab")!.targetHandle).toBe("out");
+    s().toggleEdgeSide("ab", "source");
+    expect(s().edges.find((x) => x.id === "ab")!.sourceHandle).toBe("in");
+  });
+  it("reverseEdge resets sides", () => {
+    s().toggleEdgeSide("ab", "target");
+    s().reverseEdge("ab");
+    const e = s().edges.find((x) => x.id === "ab")!;
+    expect([e.source, e.target, e.sourceHandle, e.targetHandle]).toEqual(["b", "a", "out", "in"]);
+  });
+  it("addConnectedNode uses anchorHandle on the anchor end", () => {
+    const id = s().addConnectedNode("a", { x: 0, y: 200 }, "downstream", { anchorHandle: "in" });
+    const e = s().edges.find((x) => x.source === "a" && x.target === id)!;
+    expect([e.sourceHandle, e.targetHandle]).toEqual(["in", "in"]);
   });
 });

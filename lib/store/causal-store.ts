@@ -19,7 +19,11 @@ import {
   type CausalLayoutDirection,
   layoutCausalNodes,
 } from "@/lib/causal-auto-layout";
-import type { CausalJsonDocument, CausalPolarity } from "@/lib/causal-json";
+import type {
+  CausalJsonDocument,
+  CausalPolarity,
+  HandleSide,
+} from "@/lib/causal-json";
 import { instantiateFragment } from "@/lib/clipboard";
 import type { Bend } from "@/lib/edge-geometry";
 import {
@@ -46,6 +50,7 @@ export type EditingState = { id: string; isNew: boolean } | null;
 
 export const NEW_NODE_LABEL = "新節點";
 export const DUPLICATE_EDGE_MESSAGE = "兩節點之間已有連線";
+export const SELF_LOOP_MESSAGE = "不能連到自己";
 const TOAST_MS = 3200;
 
 let seq = 0;
@@ -116,9 +121,23 @@ export type CausalState = {
     anchorId: string,
     position: XYPosition,
     side: "downstream" | "upstream",
-    opts?: { flipped?: boolean },
+    opts?: { flipped?: boolean; anchorHandle?: HandleSide },
   ) => string;
-  connect: (source: string, target: string) => boolean;
+  connect: (
+    source: string,
+    target: string,
+    sides?: { source?: HandleSide; target?: HandleSide },
+  ) => boolean;
+  reconnectEdge: (
+    id: string,
+    next: {
+      source: string;
+      target: string;
+      sourceHandle?: string | null;
+      targetHandle?: string | null;
+    },
+  ) => boolean;
+  toggleEdgeSide: (id: string, end: "source" | "target") => void;
   updateNodeLabel: (id: string, label: string) => void;
   restoreLabel: (id: string, label: string) => void;
   updateEdge: (id: string, patch: Partial<CausalEdgeData>) => void;
@@ -236,6 +255,10 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         source,
         target,
         edgeDefaults(),
+        // anchorHandle 只作用在錨點那一端
+        side === "downstream"
+          ? { source: opts?.anchorHandle }
+          : { target: opts?.anchorHandle },
       );
       set((s) => ({
         nodes: [...deselectNodes(s.nodes), newNode(id, position, opts?.flipped)],
@@ -246,7 +269,11 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       return id;
     },
 
-    connect: (source, target) => {
+    connect: (source, target, sides) => {
+      if (source === target) {
+        get().showToast(SELF_LOOP_MESSAGE);
+        return false;
+      }
       if (hasEdge(get().edges, source, target)) {
         get().showToast(DUPLICATE_EDGE_MESSAGE);
         return false;
@@ -257,9 +284,55 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         source,
         target,
         edgeDefaults(),
+        sides,
       );
       set((s) => ({ edges: [...s.edges, edge] }));
       return true;
+    },
+
+    reconnectEdge: (id, next) => {
+      if (!get().edges.some((e) => e.id === id)) return false;
+      if (next.source === next.target) {
+        get().showToast(SELF_LOOP_MESSAGE);
+        return false;
+      }
+      const duplicate = get().edges.some(
+        (e) =>
+          e.id !== id && e.source === next.source && e.target === next.target,
+      );
+      if (duplicate) {
+        get().showToast(DUPLICATE_EDGE_MESSAGE);
+        return false;
+      }
+      commit();
+      set((s) => ({
+        edges: s.edges.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                source: next.source,
+                target: next.target,
+                sourceHandle: next.sourceHandle ?? "out",
+                targetHandle: next.targetHandle ?? "in",
+              }
+            : e,
+        ),
+      }));
+      return true;
+    },
+
+    toggleEdgeSide: (id, end) => {
+      if (!get().edges.some((e) => e.id === id)) return;
+      commit();
+      const key = end === "source" ? "sourceHandle" : "targetHandle";
+      const fallback = end === "source" ? "out" : "in";
+      set((s) => ({
+        edges: s.edges.map((e) =>
+          e.id === id
+            ? { ...e, [key]: (e[key] ?? fallback) === "in" ? "out" : "in" }
+            : e,
+        ),
+      }));
     },
 
     updateNodeLabel: (id, label) =>
@@ -305,7 +378,15 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       commit();
       set((s) => ({
         edges: s.edges.map((e) =>
-          e.id === id ? { ...e, source: edge.target, target: edge.source } : e,
+          e.id === id
+            ? {
+                ...e,
+                source: edge.target,
+                target: edge.source,
+                sourceHandle: "out",
+                targetHandle: "in",
+              }
+            : e,
         ),
       }));
       return true;

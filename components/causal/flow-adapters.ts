@@ -4,6 +4,7 @@ import type {
   CausalJsonDocument,
   CausalJsonEdge,
   CausalJsonNode,
+  HandleSide,
 } from "@/lib/causal-json";
 import type { CausalEdgeData } from "./causal-edge";
 import type { CausalNodeData } from "./causal-node";
@@ -34,6 +35,8 @@ export function jsonEdgeToFlow(e: CausalJsonEdge): Edge<CausalEdgeData> {
     id: e.id,
     source: e.source,
     target: e.target,
+    sourceHandle: e.sourceSide ?? "out",
+    targetHandle: e.targetSide ?? "in",
     type: "causal",
     data: { polarity, ...(e.bend ? { bend: e.bend } : {}) },
     markerEnd: marker(polarity),
@@ -74,6 +77,8 @@ export function flowToDocument(
         direction: "one-way" as const,
         polarity: data.polarity,
         ...(data.bend ? { bend: data.bend } : {}),
+        ...(e.sourceHandle === "in" ? { sourceSide: "in" as const } : {}),
+        ...(e.targetHandle === "out" ? { targetSide: "out" as const } : {}),
       };
     }),
   };
@@ -85,11 +90,14 @@ export function newFlowEdge(
   source: string,
   target: string,
   defaults: CausalEdgeData,
+  sides?: { source?: HandleSide; target?: HandleSide },
 ): Edge<CausalEdgeData> {
   return {
     id,
     source,
     target,
+    sourceHandle: sides?.source ?? "out",
+    targetHandle: sides?.target ?? "in",
     type: "causal",
     data: { ...defaults },
     markerEnd: marker(defaults.polarity),
