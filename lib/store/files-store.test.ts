@@ -5,6 +5,9 @@ import { useCausalStore } from "./causal-store";
 import {
   ACTIVE_KEY,
   fileDocKey,
+  INDEX_KEY,
+  loadIndex,
+  saveIndex,
   fileLayoutKey,
   type FileStorage,
   readFileDoc,
@@ -17,10 +20,12 @@ import { DOC_KEY, LAYOUT_KEY } from "./persistence";
 class MemoryStorage implements FileStorage {
   data = new Map<string, string>();
   writes = 0;
+  failWrites = false;
   getItem(key: string) {
     return this.data.get(key) ?? null;
   }
   setItem(key: string, value: string) {
+    if (this.failWrites) throw new Error("quota");
     this.writes += 1;
     this.data.set(key, value);
   }
@@ -92,7 +97,7 @@ describe("files store", () => {
   it("init restores the stored active file", () => {
     init();
     const first = f().activeId!;
-    const second = f().createFile(DOC);
+    const second = f().createFile(DOC)!;
     useCausalStore.setState(useCausalStore.getInitialState(), true);
     useFilesStore.setState(useFilesStore.getInitialState(), true);
     init();
@@ -105,7 +110,7 @@ describe("files store", () => {
   it("createFile opens a blank file with empty history", () => {
     init();
     c().addNode({ x: 0, y: 0 });
-    const id = f().createFile();
+    const id = f().createFile()!;
     expect(f().files).toHaveLength(2);
     expect(f().activeId).toBe(id);
     expect(c().nodes).toHaveLength(0);
@@ -117,7 +122,7 @@ describe("files store", () => {
 
   it("createFile(doc) opens the given document", () => {
     init();
-    const id = f().createFile(DOC);
+    const id = f().createFile(DOC)!;
     expect(f().activeId).toBe(id);
     expect(c().nodes.map((n) => n.id)).toEqual(["a", "b"]);
     expect(meta(id).title).toBe("匯入");
@@ -127,7 +132,7 @@ describe("files store", () => {
   it("switching keeps edits and only bumps updatedAt of the edited file", () => {
     init();
     const a = f().activeId!;
-    const b = f().createFile();
+    const b = f().createFile()!;
     f().openFile(a);
     const aBefore = meta(a).updatedAt;
     const bBefore = meta(b).updatedAt;
@@ -143,7 +148,7 @@ describe("files store", () => {
   it("openFile clears undo history", () => {
     init();
     const a = f().activeId!;
-    const b = f().createFile();
+    const b = f().createFile()!;
     c().addNode({ x: 0, y: 0 });
     expect(c().history.past.length).toBeGreaterThan(0);
     f().openFile(a);
@@ -156,7 +161,7 @@ describe("files store", () => {
     init();
     const a = f().activeId!;
     c().applyLayout("TB");
-    const b = f().createFile();
+    const b = f().createFile()!;
     expect(c().layoutDirection).toBe("LR");
     expect(readFileLayout(storage, a)).toBe("TB");
     f().openFile(a);
@@ -178,7 +183,7 @@ describe("files store", () => {
   it("renameFile on a non-active file rewrites its doc and index only", () => {
     init();
     const a = f().activeId!;
-    const b = f().createFile(DOC);
+    const b = f().createFile(DOC)!;
     const before = meta(a).updatedAt;
     f().renameFile(a, "別的");
     expect(meta(a).title).toBe("別的");
@@ -190,10 +195,10 @@ describe("files store", () => {
 
   it("duplicateFile copies content and layout and opens the copy", () => {
     init();
-    const a = f().createFile(DOC);
+    const a = f().createFile(DOC)!;
     c().applyLayout("TB");
     const nodesBefore = c().nodes.map((n) => ({ id: n.id, position: n.position }));
-    const copy = f().duplicateFile(a);
+    const copy = f().duplicateFile(a)!;
     expect(copy).not.toBe(a);
     expect(f().activeId).toBe(copy);
     expect(meta(copy).title).toContain("（副本）");
@@ -208,8 +213,8 @@ describe("files store", () => {
   it("deleteFile on active opens the most recent remaining file", () => {
     init();
     const a = f().activeId!;
-    const b = f().createFile(DOC);
-    const d = f().createFile();
+    const b = f().createFile(DOC)!;
+    const d = f().createFile()!;
     // 讓 b 比 a 新
     f().openFile(b);
     c().addNode({ x: 0, y: 0 });
@@ -225,7 +230,7 @@ describe("files store", () => {
   it("deleteFile of a non-active file keeps the active file", () => {
     init();
     const a = f().activeId!;
-    const b = f().createFile(DOC);
+    const b = f().createFile(DOC)!;
     f().deleteFile(a);
     expect(f().files.map((m) => m.id)).toEqual([b]);
     expect(f().activeId).toBe(b);
@@ -282,5 +287,99 @@ describe("files store", () => {
     const before = meta(a).updatedAt;
     f().saveActive();
     expect(meta(a).updatedAt).toBe(before);
+  });
+
+  it("uninitialized saveActive reports failure", () => {
+    expect(f().saveActive()).toBe(false);
+  });
+
+  it("saveActive failure leaves index, layout and updatedAt untouched", () => {
+    init();
+    const a = f().activeId!;
+    const before = meta(a).updatedAt;
+    const index = storage.getItem(INDEX_KEY);
+    c().applyLayout("TB");
+    storage.failWrites = true;
+    expect(f().saveActive()).toBe(false);
+    storage.failWrites = false;
+    expect(meta(a).updatedAt).toBe(before);
+    expect(storage.getItem(INDEX_KEY)).toBe(index);
+    expect(readFileLayout(storage, a)).toBe("LR");
+    // 之後恢復可寫時會重試
+    expect(f().saveActive()).toBe(true);
+    expect(readFileLayout(storage, a)).toBe("TB");
+  });
+
+  it("openFile does not switch when saving the current file fails", () => {
+    init();
+    const a = f().activeId!;
+    const b = f().createFile(DOC)!;
+    f().openFile(a);
+    const nodeId = c().addNode({ x: 0, y: 0 });
+    storage.failWrites = true;
+    expect(f().openFile(b)).toBe(false);
+    expect(f().activeId).toBe(a);
+    expect(c().nodes.some((n) => n.id === nodeId)).toBe(true);
+    expect(c().history.past.length).toBeGreaterThan(0);
+    expect(c().toast).toBe("目前檔案存檔失敗，未切換檔案");
+  });
+
+  it("createFile aborts without an orphan when saving the current file fails", () => {
+    init();
+    const a = f().activeId!;
+    const nodeId = c().addNode({ x: 0, y: 0 });
+    const keys = [...storage.data.keys()].sort();
+    storage.failWrites = true;
+    expect(f().createFile(DOC)).toBeNull();
+    expect(f().activeId).toBe(a);
+    expect(f().files).toHaveLength(1);
+    expect(c().nodes.some((n) => n.id === nodeId)).toBe(true);
+    expect([...storage.data.keys()].sort()).toEqual(keys);
+    expect(loadIndex(storage)).toHaveLength(1);
+  });
+
+  it("duplicateFile aborts without an orphan when saving fails", () => {
+    init();
+    const a = f().activeId!;
+    c().addNode({ x: 0, y: 0 });
+    const keys = [...storage.data.keys()].sort();
+    storage.failWrites = true;
+    expect(f().duplicateFile(a)).toBeNull();
+    expect(f().activeId).toBe(a);
+    expect(f().files).toHaveLength(1);
+    expect([...storage.data.keys()].sort()).toEqual(keys);
+  });
+
+  it("index writes merge entries added by another tab", () => {
+    init();
+    const a = f().activeId!;
+    const other = { id: "other-tab", title: "別分頁", updatedAt: 1 };
+    saveIndex(storage, [...loadIndex(storage), other]);
+    c().addNode({ x: 0, y: 0 });
+    expect(f().saveActive()).toBe(true);
+    expect(loadIndex(storage)).toContainEqual(other);
+    expect(f().files).toContainEqual(other);
+    expect(loadIndex(storage).some((m) => m.id === a)).toBe(true);
+    const b = f().createFile()!;
+    expect(loadIndex(storage).map((m) => m.id).sort()).toEqual(
+      [a, b, "other-tab"].sort(),
+    );
+    f().deleteFile(a);
+    expect(loadIndex(storage).map((m) => m.id).sort()).toEqual(
+      [b, "other-tab"].sort(),
+    );
+  });
+
+  it("distinguishes a missing doc from a corrupt one", () => {
+    init();
+    const a = f().activeId!;
+    storage.removeItem(fileDocKey(a));
+    useFilesStore.setState(useFilesStore.getInitialState(), true);
+    init();
+    expect(c().toast).toBe("找不到檔案內容，已開啟空白");
+    storage.setItem(fileDocKey(a), "{bad");
+    useFilesStore.setState(useFilesStore.getInitialState(), true);
+    init();
+    expect(c().toast).toBe("無法讀取檔案內容（原資料已備份）");
   });
 });

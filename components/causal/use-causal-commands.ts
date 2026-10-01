@@ -286,8 +286,10 @@ export function useCausalCommands(
         } catch (err) {
           return err instanceof CausalJsonError ? err.message : "匯入失敗";
         }
-        useFilesStore.getState().createFile(doc);
-        store().showToast("已匯入為新檔案");
+        // 失敗時 createFile 已提示原因，目前的圖不變
+        if (useFilesStore.getState().createFile(doc)) {
+          store().showToast("已匯入為新檔案");
+        }
         return null;
       },
 

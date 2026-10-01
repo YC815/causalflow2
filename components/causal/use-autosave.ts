@@ -36,6 +36,8 @@ export function hydrateFromStorage(): void {
 
 export function useAutosave(): void {
   useEffect(() => {
+    // Fast Refresh 重建 files-store 模組後需要重新初始化
+    if (useFilesStore.getState().activeId === null) hydrateFromStorage();
     let timer: number | undefined;
     let warned = false;
 

@@ -8,8 +8,10 @@ import {
   ACTIVE_KEY,
   bootstrapFiles,
   displayTitle,
+  fileDocKey,
   type FileMeta,
   type FileStorage,
+  loadIndex,
   readFileDoc,
   readFileLayout,
   removeFile,
@@ -27,10 +29,12 @@ export type FilesState = {
     storage: FileStorage,
     opts?: { now?: () => number; newId?: () => string },
   ): { corrupt: "index" | "legacy" | null };
-  openFile(id: string): void;
-  createFile(doc?: CausalJsonDocument): string;
+  /** 目前檔案存檔失敗時不切換，回傳 false */
+  openFile(id: string): boolean;
+  /** 目前檔案存檔失敗或新檔寫入失敗 → null，不留下孤兒檔案 */
+  createFile(doc?: CausalJsonDocument): string | null;
   renameFile(id: string, title: string): void;
-  duplicateFile(id: string): string;
+  duplicateFile(id: string): string | null;
   deleteFile(id: string): void;
   /** 回傳 false 表示寫入失敗 */
   saveActive(): boolean;
@@ -63,7 +67,37 @@ function serialize(doc: CausalJsonDocument, layout: CausalLayoutDirection) {
   return `${layout}\n${stringifyCausalJson(doc)}`;
 }
 
+const toast = (message: string) =>
+  useCausalStore.getState().showToast(message);
+
 export const useFilesStore = create<FilesState>()((set, get) => {
+  /**
+   * 以 storage 中的索引為準合併（其他分頁可能也改過索引），再寫回。
+   * 讀不到 storage 索引時退回記憶體中的清單，避免把其他檔案洗掉。
+   */
+  const updateIndex = (change: (files: FileMeta[]) => FileMeta[]): boolean => {
+    if (!storage) return false;
+    const stored = loadIndex(storage);
+    const files = change(stored.length > 0 ? stored : get().files);
+    set({ files });
+    return saveIndex(storage, files);
+  };
+
+  const upsertMeta = (meta: FileMeta) =>
+    updateIndex((files) =>
+      files.some((f) => f.id === meta.id)
+        ? files.map((f) => (f.id === meta.id ? meta : f))
+        : [...files, meta],
+    );
+
+  /** 切走前先存目前檔案；失敗就中止，避免遺失內容 */
+  const saveBeforeLeaving = (): boolean => {
+    if (get().activeId === null) return true;
+    if (get().saveActive()) return true;
+    toast("目前檔案存檔失敗，未切換檔案");
+    return false;
+  };
+
   /** 讀檔載入 causal store，並把載入結果記成「已存」 */
   const load = (id: string) => {
     if (!storage) return;
@@ -71,7 +105,17 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     const doc = readFileDoc(storage, id);
     if (!doc) {
       // 讀不到就載入空白，但不覆寫原檔（使用者編輯前不會寫入）
-      useCausalStore.getState().showToast("無法讀取檔案內容（原資料已備份）");
+      let missing = true;
+      try {
+        missing = storage.getItem(fileDocKey(id)) === null;
+      } catch {
+        /* ignore */
+      }
+      toast(
+        missing
+          ? "找不到檔案內容，已開啟空白"
+          : "無法讀取檔案內容（原資料已備份）",
+      );
     }
     useCausalStore
       .getState()
@@ -92,19 +136,20 @@ export const useFilesStore = create<FilesState>()((set, get) => {
   const addFile = (
     doc: CausalJsonDocument,
     layout: CausalLayoutDirection,
-  ): string => {
+  ): string | null => {
+    if (!storage || !saveBeforeLeaving()) return null;
     const id = newId();
-    if (storage) {
-      writeFileDoc(storage, id, doc);
-      writeFileLayout(storage, id, layout);
+    const ok =
+      writeFileDoc(storage, id, doc) &&
+      upsertMeta({ id, title: doc.title ?? "", updatedAt: now() });
+    if (!ok) {
+      removeFile(storage, id);
+      updateIndex((files) => files.filter((f) => f.id !== id));
+      toast("無法建立檔案");
+      return null;
     }
-    const files = [
-      ...get().files,
-      { id, title: doc.title ?? "", updatedAt: now() },
-    ];
-    set({ files });
-    if (storage) saveIndex(storage, files);
-    get().openFile(id);
+    writeFileLayout(storage, id, layout);
+    load(id);
     return id;
   };
 
@@ -128,10 +173,11 @@ export const useFilesStore = create<FilesState>()((set, get) => {
     },
 
     openFile: (id) => {
-      if (id === get().activeId) return;
-      if (!get().files.some((f) => f.id === id)) return;
-      get().saveActive();
+      if (id === get().activeId) return true;
+      if (!get().files.some((f) => f.id === id)) return false;
+      if (!saveBeforeLeaving()) return false;
       load(id);
+      return true;
     },
 
     createFile: (doc) => addFile(doc ?? blankDocument(), "LR"),
@@ -141,65 +187,62 @@ export const useFilesStore = create<FilesState>()((set, get) => {
         useCausalStore.getState().setTitle(title);
         return;
       }
+      if (!storage) return;
       const t = title.trim();
-      if (storage) {
-        const doc = readFileDoc(storage, id);
-        if (doc) {
-          const next: CausalJsonDocument = { ...doc, title: t };
-          if (!t) delete next.title;
-          writeFileDoc(storage, id, next);
+      const doc = readFileDoc(storage, id);
+      if (doc) {
+        const next: CausalJsonDocument = { ...doc, title: t };
+        if (!t) delete next.title;
+        if (!writeFileDoc(storage, id, next)) {
+          toast("重新命名失敗");
+          return;
         }
       }
-      const files = get().files.map((f) =>
-        f.id === id ? { ...f, title: t, updatedAt: now() } : f,
-      );
-      set({ files });
-      if (storage) saveIndex(storage, files);
+      const meta = get().files.find((f) => f.id === id);
+      if (meta) upsertMeta({ ...meta, title: t, updatedAt: now() });
     },
 
     duplicateFile: (id) => {
-      if (id === get().activeId) get().saveActive();
+      if (!storage) return null;
+      // 先存目前檔案，複製目前檔案時才會拿到最新內容
+      if (!saveBeforeLeaving()) return null;
       const meta = get().files.find((f) => f.id === id);
-      const doc = (storage && readFileDoc(storage, id)) ?? {
+      const doc = readFileDoc(storage, id) ?? {
         ...blankDocument(),
         title: meta?.title || undefined,
       };
-      const layout = storage ? readFileLayout(storage, id) : "LR";
       const title = `${displayTitle(doc.title ?? "")}（副本）`;
-      return addFile({ ...doc, title }, layout);
+      return addFile({ ...doc, title }, readFileLayout(storage, id));
     },
 
     deleteFile: (id) => {
+      if (!storage) return;
       if (!get().files.some((f) => f.id === id)) return;
-      if (storage) removeFile(storage, id);
+      removeFile(storage, id);
       lastSaved.delete(id);
-      const files = get().files.filter((f) => f.id !== id);
       const wasActive = id === get().activeId;
-      // 先放掉 activeId，避免 openFile 把畫面內容存回已刪除的檔案
-      set({ files, activeId: wasActive ? null : get().activeId });
+      // 先放掉 activeId，避免把畫面內容存回已刪除的檔案
+      if (wasActive) set({ activeId: null });
+      updateIndex((files) => files.filter((f) => f.id !== id));
+      const files = get().files;
       if (files.length === 0) {
         get().createFile();
         return;
       }
-      if (storage) saveIndex(storage, files);
-      if (wasActive) get().openFile(sortByRecent(files)[0].id);
+      if (wasActive) load(sortByRecent(files)[0].id);
     },
 
     saveActive: () => {
       const id = get().activeId;
-      if (!storage || !id) return true;
+      // 未初始化時絕不吞掉存檔：回報失敗讓呼叫端提示
+      if (!storage || !id) return false;
       const { doc, layout } = currentDocument();
       const key = serialize(doc, layout);
       if (lastSaved.get(id) === key) return true;
-      const ok = writeFileDoc(storage, id, doc);
+      if (!writeFileDoc(storage, id, doc)) return false;
+      lastSaved.set(id, key);
       writeFileLayout(storage, id, layout);
-      const files = get().files.map((f) =>
-        f.id === id ? { ...f, title: doc.title ?? "", updatedAt: now() } : f,
-      );
-      set({ files });
-      const indexOk = saveIndex(storage, files);
-      if (ok) lastSaved.set(id, key);
-      return ok && indexOk;
+      return upsertMeta({ id, title: doc.title ?? "", updatedAt: now() });
     },
   };
 });

@@ -71,7 +71,8 @@ export function readFileDoc(
   } catch {
     // 不直接覆蓋壞資料，先備份讓使用者有機會救回。
     try {
-      storage.setItem(`${fileDocKey(id)}-corrupt`, raw);
+      const backupKey = `${fileDocKey(id)}-corrupt`;
+      if (storage.getItem(backupKey) === null) storage.setItem(backupKey, raw);
     } catch {
       /* ignore */
     }

@@ -138,6 +138,14 @@ describe("file doc / layout", () => {
     expect(s.getItem(`${fileDocKey("f")}-corrupt`)).toBe("{bad");
   });
 
+  it("does not overwrite an existing doc backup", () => {
+    const s = new MemoryStorage();
+    s.setItem(`${fileDocKey("f")}-corrupt`, "first");
+    s.setItem(fileDocKey("f"), "{bad");
+    expect(readFileDoc(s, "f")).toBeNull();
+    expect(s.getItem(`${fileDocKey("f")}-corrupt`)).toBe("first");
+  });
+
   it("layout defaults to LR and can store TB", () => {
     const s = new MemoryStorage();
     expect(readFileLayout(s, "f")).toBe("LR");
