@@ -92,6 +92,12 @@ function MenuItems({
           <ContextMenuItem onSelect={commands.reverseSelectedEdge}>
             反轉方向
           </ContextMenuItem>
+          <ContextMenuItem onSelect={() => commands.toggleSelectedEdgeSide("source")}>
+            起點改接另一側
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => commands.toggleSelectedEdgeSide("target")}>
+            終點改接另一側
+          </ContextMenuItem>
           <ContextMenuItem onSelect={commands.resetSelectedEdgeBend}>
             重設彎曲
           </ContextMenuItem>

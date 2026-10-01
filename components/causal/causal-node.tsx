@@ -82,8 +82,8 @@ export function CausalNode({
   const inSide = horizontal ? Position.Left : Position.Top;
   const outSide = horizontal ? Position.Right : Position.Bottom;
   // 翻轉：輸入／輸出兩側對調
-  const targetPos = flipped ? outSide : inSide;
-  const sourcePos = flipped ? inSide : outSide;
+  const inPos = flipped ? outSide : inSide;
+  const outPos = flipped ? inSide : outSide;
   const FlipIcon = horizontal ? ArrowLeftRight : ArrowUpDown;
 
   /** Handle 位置變更後通知 React Flow 重算連線端點，否則邊仍沿用舊的左右座標 */
@@ -119,8 +119,9 @@ export function CausalNode({
         </button>
       </NodeToolbar>
       <Handle
-        type="target"
-        position={targetPos}
+        id="in"
+        type="source"
+        position={inPos}
         className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-white"
       />
       {editing ? (
@@ -131,8 +132,9 @@ export function CausalNode({
         </p>
       )}
       <Handle
+        id="out"
         type="source"
-        position={sourcePos}
+        position={outPos}
         className="!h-2.5 !w-2.5 !border-2 !border-[var(--causal-handle)] !bg-white"
       />
     </div>

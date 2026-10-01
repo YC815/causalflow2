@@ -12,6 +12,7 @@ import {
   type CausalJsonDocument,
   CausalJsonError,
   type CausalPolarity,
+  type HandleSide,
   parseCausalJson,
   stringifyCausalJson,
 } from "@/lib/causal-json";
@@ -124,11 +125,13 @@ export function useCausalCommands(
         anchorId: string,
         point: XYPosition,
         side: "downstream" | "upstream",
+        anchorHandle?: HandleSide,
       ) => {
         store().addConnectedNode(
           anchorId,
           centered(screenToFlowPosition(point)),
           side,
+          { anchorHandle },
         );
       },
 
@@ -240,6 +243,11 @@ export function useCausalCommands(
       reverseSelectedEdge: () => {
         const id = singleSelectedEdgeId();
         if (id) store().reverseEdge(id);
+      },
+
+      toggleSelectedEdgeSide: (end: "source" | "target") => {
+        const id = singleSelectedEdgeId();
+        if (id) store().toggleEdgeSide(id, end);
       },
 
       resetSelectedEdgeBend: () => {

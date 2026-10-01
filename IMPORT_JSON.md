@@ -55,6 +55,8 @@
 | `target` | `string` | 是 | 必須等於某個節點 `id` |
 | `direction` | `string` | 否 | 固定 `"one-way"`（可省略；舊檔的 `"bidirectional"` 讀入時視為單向） |
 | `polarity` | `string` | 是 | `"positive"` / `"negative"` / `"neutral"` |
+| `sourceSide` | `string` | 否 | 起點接在節點的哪一側：`"in"` / `"out"`，預設 `"out"` |
+| `targetSide` | `string` | 否 | 終點接在節點的哪一側：`"in"` / `"out"`，預設 `"in"` |
 
 語意：`source -> target`。
 

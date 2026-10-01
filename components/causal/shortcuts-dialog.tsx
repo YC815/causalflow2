@@ -42,6 +42,7 @@ function rows(mod: string): { group: string; items: Row[] }[] {
         { keys: [["-"]], label: "負相關" },
         { keys: [["0"]], label: "未指定" },
         { keys: [["拖曳圓圈"]], label: "改變連線形狀（雙擊重設）" },
+        { keys: [["拖曳線頭"]], label: "改接另一側或其他節點" },
       ],
     },
     {

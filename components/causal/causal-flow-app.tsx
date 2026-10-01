@@ -5,6 +5,7 @@ import {
   BackgroundVariant,
   ControlButton,
   Controls,
+  ConnectionMode,
   MiniMap,
   type OnConnectEnd,
   ReactFlow,
@@ -19,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { HandleSide } from "@/lib/causal-json";
 import { useCausalStore } from "@/lib/store/causal-store";
 import { CanvasContextMenu, type MenuTarget } from "./canvas-context-menu";
 import { CausalEdge } from "./causal-edge";
@@ -39,6 +41,10 @@ import { useStoredFlag } from "./use-stored-flag";
 const nodeTypes = { causal: CausalNode };
 const edgeTypes = { causal: CausalEdge };
 const LS_MINIMAP = "causalflow-ui-minimap-hidden";
+
+function asSide(h: string | null | undefined): HandleSide | undefined {
+  return h === "in" || h === "out" ? h : undefined;
+}
 
 function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } {
   if ("changedTouches" in event) {
@@ -63,10 +69,13 @@ function FlowCanvas() {
   const onNodesChange = useCausalStore((s) => s.onNodesChange);
   const onEdgesChange = useCausalStore((s) => s.onEdgesChange);
   const connect = useCausalStore((s) => s.connect);
+  const reconnectEdge = useCausalStore((s) => s.reconnectEdge);
   const commit = useCausalStore((s) => s.commit);
   const showToast = useCausalStore((s) => s.showToast);
 
   const flowWrapRef = useRef<HTMLDivElement>(null);
+  // 改接線頭時 React Flow 也會呼叫 onConnectEnd（早於 onReconnectEnd），此時絕不能建節點
+  const reconnectingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commands = useCausalCommands(flowWrapRef);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
@@ -104,13 +113,16 @@ function FlowCanvas() {
 
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, state) => {
+      if (reconnectingRef.current) return;
       if (state.isValid || !state.fromNode || !isPaneTarget(event.target)) {
         return;
       }
+      // 所有接點皆為 source 型別，從哪個接點拖出都是往下游建立
       commands.addConnectedNodeAtScreen(
         state.fromNode.id,
         clientPoint(event),
-        state.fromHandle?.type === "target" ? "upstream" : "downstream",
+        "downstream",
+        asSide(state.fromHandle?.id),
       );
     },
     [commands],
@@ -147,10 +159,27 @@ function FlowCanvas() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            connectionMode={ConnectionMode.Loose}
             onConnect={(c) => {
-              if (c.source && c.target) connect(c.source, c.target);
+              if (c.source && c.target) {
+                connect(c.source, c.target, {
+                  source: asSide(c.sourceHandle),
+                  target: asSide(c.targetHandle),
+                });
+              }
             }}
             onConnectEnd={onConnectEnd}
+            edgesReconnectable
+            onReconnect={(oldEdge, c) => reconnectEdge(oldEdge.id, c)}
+            onReconnectStart={() => {
+              reconnectingRef.current = true;
+            }}
+            onReconnectEnd={() => {
+              // 延後清除，不依賴與 onConnectEnd 的呼叫順序
+              setTimeout(() => {
+                reconnectingRef.current = false;
+              }, 0);
+            }}
             onNodeDragStart={() => commit()}
             onSelectionDragStart={() => commit()}
             onBeforeDelete={async ({ nodes: ns, edges: es }) => {
