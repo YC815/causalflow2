@@ -139,6 +139,7 @@ export function useCausalCommands(
           nodeRect(n),
           store().layoutDirection,
           allRects(),
+          Boolean(n.data.flipped),
         );
         ensureVisible(store().addConnectedNode(n.id, pos, "downstream"));
         return true;

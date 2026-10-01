@@ -216,3 +216,39 @@ describe("restoreLabel", () => {
     expect(s().history.past.length).toBe(before);
   });
 });
+
+describe("bend and flip", () => {
+  it("setEdgeBend does not record history; resetEdgeBend does", () => {
+    const before = s().history.past.length;
+    s().setEdgeBend("ab", { dx: 5, dy: 6 });
+    expect(s().edges[0].data?.bend).toEqual({ dx: 5, dy: 6 });
+    expect(s().history.past.length).toBe(before);
+    s().resetEdgeBend("ab");
+    expect(s().edges[0].data?.bend).toBeUndefined();
+    expect(s().history.past.length).toBe(before + 1);
+    s().undo();
+    expect(s().edges[0].data?.bend).toEqual({ dx: 5, dy: 6 });
+  });
+  it("resetEdgeBend without bend is a no-op", () => {
+    const before = s().history.past.length;
+    s().resetEdgeBend("ab");
+    expect(s().history.past.length).toBe(before);
+  });
+  it("toggleFlip flips and is undoable", () => {
+    s().toggleFlip(["a"]);
+    expect(s().nodes.find((n) => n.id === "a")?.data.flipped).toBe(true);
+    s().toggleFlip(["a"]);
+    expect(s().nodes.find((n) => n.id === "a")?.data.flipped).toBeUndefined();
+    s().undo();
+    expect(s().nodes.find((n) => n.id === "a")?.data.flipped).toBe(true);
+  });
+  it("applyLayout clears bends but keeps flips", () => {
+    s().setEdgeBend("ab", { dx: 5, dy: 6 });
+    s().toggleFlip(["a"]);
+    s().applyLayout("LR");
+    expect(s().edges[0].data?.bend).toBeUndefined();
+    expect(s().nodes.find((n) => n.id === "a")?.data.flipped).toBe(true);
+    s().undo();
+    expect(s().edges[0].data?.bend).toEqual({ dx: 5, dy: 6 });
+  });
+});

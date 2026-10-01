@@ -53,11 +53,23 @@ export function downstreamPosition(
   from: Rect,
   direction: CausalLayoutDirection,
   others: Rect[],
+  flipped = false,
 ): Point {
+  // 翻轉後輸出在左／上側，新節點放在反方向；以預設尺寸估算新節點大小
   const base =
     direction === "LR"
-      ? { x: from.x + from.width + FLOW_GAP, y: from.y }
-      : { x: from.x, y: from.y + from.height + FLOW_GAP };
+      ? {
+          x: flipped
+            ? from.x - DEFAULT_NODE_SIZE.width - FLOW_GAP
+            : from.x + from.width + FLOW_GAP,
+          y: from.y,
+        }
+      : {
+          x: from.x,
+          y: flipped
+            ? from.y - DEFAULT_NODE_SIZE.height - FLOW_GAP
+            : from.y + from.height + FLOW_GAP,
+        };
   return resolveOverlap(base, others, direction);
 }
 

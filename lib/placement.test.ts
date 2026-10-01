@@ -50,4 +50,9 @@ describe("placement", () => {
       y: 140,
     });
   });
+
+  it("flipped downstream goes left in LR and up in TB", () => {
+    expect(downstreamPosition(FROM, "LR", [FROM], true)).toEqual({ x: -240, y: 0 });
+    expect(downstreamPosition(FROM, "TB", [FROM], true)).toEqual({ x: 0, y: -140 });
+  });
 });

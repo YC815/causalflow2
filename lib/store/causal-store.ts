@@ -21,6 +21,7 @@ import {
 } from "@/lib/causal-auto-layout";
 import type { CausalJsonDocument, CausalPolarity } from "@/lib/causal-json";
 import { instantiateFragment } from "@/lib/clipboard";
+import type { Bend } from "@/lib/edge-geometry";
 import {
   discardLast,
   emptyHistory,
@@ -121,6 +122,9 @@ export type CausalState = {
   restoreLabel: (id: string, label: string) => void;
   updateEdge: (id: string, patch: Partial<CausalEdgeData>) => void;
   reverseEdge: (id: string) => boolean;
+  setEdgeBend: (id: string, bend: Bend | null) => void;
+  resetEdgeBend: (id: string) => void;
+  toggleFlip: (ids: string[]) => void;
   deleteSelected: () => void;
   selectNodes: (ids: string[]) => void;
   selectEdge: (id: string) => void;
@@ -306,6 +310,35 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       return true;
     },
 
+    // 拖曳中即時更新，不 commit（拖曳起點由呼叫端 commit）
+    setEdgeBend: (id, bend) =>
+      set((s) => ({
+        edges: s.edges.map((e) =>
+          e.id === id
+            ? { ...e, data: { ...e.data!, bend: bend ?? undefined } }
+            : e,
+        ),
+      })),
+
+    resetEdgeBend: (id) => {
+      if (!get().edges.find((e) => e.id === id)?.data?.bend) return;
+      commit();
+      get().setEdgeBend(id, null);
+    },
+
+    toggleFlip: (ids) => {
+      if (ids.length === 0) return;
+      const wanted = new Set(ids);
+      commit();
+      set((s) => ({
+        nodes: s.nodes.map((n) =>
+          wanted.has(n.id)
+            ? { ...n, data: { ...n.data, flipped: n.data.flipped ? undefined : true } }
+            : n,
+        ),
+      }));
+    },
+
     deleteSelected: () => {
       const { nodes, edges } = get();
       const doomed = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
@@ -363,6 +396,10 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       set((s) => ({
         layoutDirection: direction,
         nodes: layoutCausalNodes(s.nodes, s.edges, direction),
+        // 重排後舊的折點位置已失去意義
+        edges: s.edges.map((e) =>
+          e.data?.bend ? { ...e, data: { ...e.data, bend: undefined } } : e,
+        ),
       }));
     },
 
