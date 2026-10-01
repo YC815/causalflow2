@@ -14,6 +14,7 @@ export type CausalJsonNode = {
   label: string;
   x: number;
   y: number;
+  flipped?: true;
 };
 
 export type CausalJsonEdge = {
@@ -22,6 +23,7 @@ export type CausalJsonEdge = {
   target: string;
   direction: CausalDirection;
   polarity: CausalPolarity;
+  bend?: { dx: number; dy: number };
 };
 
 export type CausalJsonDocument = {
@@ -82,11 +84,18 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
     if (!isRecord(n)) {
       throw new CausalJsonError(`nodes[${i}] 必須為物件`);
     }
+    if (n.flipped !== undefined && typeof n.flipped !== "boolean") {
+      throw new CausalJsonError(
+        `nodes[${i}].flipped 若提供必須為 true 或 false`,
+      );
+    }
+    const flipped = n.flipped === true;
     return {
       id: asString(n.id, `nodes[${i}].id`),
       label: asString(n.label, `nodes[${i}].label`),
       x: asNumber(n.x, `nodes[${i}].x`),
       y: asNumber(n.y, `nodes[${i}].y`),
+      ...(flipped ? { flipped: true as const } : {}),
     };
   });
 
@@ -124,12 +133,23 @@ export function parseCausalJson(raw: string): CausalJsonDocument {
     if (!idSet.has(target)) {
       throw new CausalJsonError(`edges[${i}].target 找不到節點 "${target}"`);
     }
+    let bend: { dx: number; dy: number } | undefined;
+    if (e.bend !== undefined) {
+      if (!isRecord(e.bend)) {
+        throw new CausalJsonError(`edges[${i}].bend 必須為 { dx, dy } 物件`);
+      }
+      bend = {
+        dx: asNumber(e.bend.dx, `edges[${i}].bend.dx`),
+        dy: asNumber(e.bend.dy, `edges[${i}].bend.dy`),
+      };
+    }
     return {
       id: asString(e.id, `edges[${i}].id`),
       source,
       target,
       direction: direction as CausalDirection,
       polarity: polarity as CausalPolarity,
+      ...(bend ? { bend } : {}),
     };
   });
 
@@ -170,6 +190,7 @@ nodes[] 每個元素：
 - label: string（非空白）
 - x: number（有限數字）
 - y: number（有限數字）
+- flipped: true（選填；輸入／輸出邊互換）
 
 edges[] 每個元素：
 - id: string（非空白）
@@ -177,6 +198,7 @@ edges[] 每個元素：
 - target: string（必須存在於 nodes[].id）
 - direction: "one-way"（選填，可省略；因果圖只有單向）
 - polarity: "positive" | "negative" | "neutral"
+- bend: { "dx": number, "dy": number }（選填；連線彎曲，通常不需提供）
 
 可直接給 AI 的輸出要求：
 「請輸出可直接匯入 CausalFlow 的純 JSON（不要 Markdown code block），並嚴格符合以上欄位與枚舉。」

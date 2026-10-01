@@ -13,6 +13,7 @@ import { useCausalFlowOrientation } from "./causal-orientation-context";
 
 export type CausalNodeData = {
   label: string;
+  flipped?: boolean;
 };
 
 function NodeLabelEditor({ initial }: { initial: string }) {

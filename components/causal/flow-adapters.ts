@@ -24,7 +24,7 @@ export function jsonNodeToFlow(n: CausalJsonNode): Node<CausalNodeData> {
     id: n.id,
     type: "causal",
     position: { x: n.x, y: n.y },
-    data: { label: n.label },
+    data: { label: n.label, ...(n.flipped ? { flipped: true } : {}) },
   };
 }
 
@@ -35,7 +35,7 @@ export function jsonEdgeToFlow(e: CausalJsonEdge): Edge<CausalEdgeData> {
     source: e.source,
     target: e.target,
     type: "causal",
-    data: { polarity },
+    data: { polarity, ...(e.bend ? { bend: e.bend } : {}) },
     markerEnd: marker(polarity),
   };
 }
@@ -63,6 +63,7 @@ export function flowToDocument(
       label: n.data.label,
       x: n.position.x,
       y: n.position.y,
+      ...(n.data.flipped ? { flipped: true as const } : {}),
     })),
     edges: edges.map((e) => {
       const data = e.data ?? { polarity: "positive" as const };
@@ -72,6 +73,7 @@ export function flowToDocument(
         target: e.target,
         direction: "one-way" as const,
         polarity: data.polarity,
+        ...(data.bend ? { bend: data.bend } : {}),
       };
     }),
   };

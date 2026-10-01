@@ -3,10 +3,12 @@
 import { Fragment } from "react";
 import { BaseEdge, EdgeProps, getBezierPath } from "@xyflow/react";
 import type { CausalPolarity } from "@/lib/causal-json";
+import type { Bend } from "@/lib/edge-geometry";
 import { CAUSAL_EDGE_STROKE_HEX } from "@/lib/causal-edge-palette";
 
 export type CausalEdgeData = {
   polarity: CausalPolarity;
+  bend?: Bend;
 };
 
 function strokeForPolarity(polarity: CausalPolarity): string {

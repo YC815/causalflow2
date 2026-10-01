@@ -26,3 +26,31 @@ describe("parseCausalJson direction", () => {
     expect(parseCausalJson(stringifyCausalJson(doc))).toEqual(doc);
   });
 });
+
+describe("parseCausalJson bend/flipped", () => {
+  const doc = (node: Record<string, unknown>, edge: Record<string, unknown>) =>
+    JSON.stringify({
+      causalflowVersion: 1,
+      nodes: [
+        { id: "a", label: "A", x: 0, y: 0, ...node },
+        { id: "b", label: "B", x: 1, y: 1 },
+      ],
+      edges: [{ id: "ab", source: "a", target: "b", polarity: "positive", ...edge }],
+    });
+
+  it("reads bend and flipped", () => {
+    const d = parseCausalJson(doc({ flipped: true }, { bend: { dx: 1, dy: -2 } }));
+    expect(d.nodes[0].flipped).toBe(true);
+    expect(d.edges[0].bend).toEqual({ dx: 1, dy: -2 });
+  });
+  it("omits flipped when false and bend when absent", () => {
+    const d = parseCausalJson(doc({ flipped: false }, {}));
+    expect("flipped" in d.nodes[0]).toBe(false);
+    expect("bend" in d.edges[0]).toBe(false);
+  });
+  it("rejects invalid bend and flipped", () => {
+    expect(() => parseCausalJson(doc({}, { bend: { dx: "1", dy: 0 } }))).toThrow();
+    expect(() => parseCausalJson(doc({}, { bend: [1, 2] }))).toThrow();
+    expect(() => parseCausalJson(doc({ flipped: "yes" }, {}))).toThrow();
+  });
+});
