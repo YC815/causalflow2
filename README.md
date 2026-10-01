@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CausalFlow
 
-## Getting Started
+繪製邏輯因果圖：節點、單／雙向連線、正／負／未指定極性，匯入匯出 JSON／PNG／PDF。內容自動存在瀏覽器 localStorage。
 
-First, run the development server:
+## 開發
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev      # http://localhost:3000
+pnpm test     # vitest（純邏輯單元測試）
+pnpm build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 操作
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| 動作 | 方式 |
+|---|---|
+| 新增節點 | 雙擊空白處；或從節點連接點拖線到空白處（自動連線） |
+| 編輯文字 | 雙擊節點、F2 或 Space；Enter 確認、Shift+Enter 換行、Esc 取消 |
+| 建立下游／同層節點 | Tab／Enter |
+| 切換選取 | 方向鍵 |
+| 連線極性 | 選取連線後按 `+` `-` `0`，`B` 切單／雙向 |
+| 復原／重做 | ⌘/Ctrl+Z、⌘/Ctrl+Shift+Z |
+| 複製／剪下／貼上／副本 | ⌘/Ctrl+C／X／V／D（可跨分頁貼上） |
+| 命令面板（含節點搜尋） | ⌘/Ctrl+K |
+| 一鍵排版 | ⌘/Ctrl+L |
+| 右鍵選單 | 節點、連線、空白處各有對應動作 |
+| 全部快捷鍵 | `?` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+JSON 格式見 `IMPORT_JSON.md`。
