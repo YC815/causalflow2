@@ -236,6 +236,11 @@ export function useCausalCommands(
         if (id) store().reverseEdge(id);
       },
 
+      resetSelectedEdgeBend: () => {
+        const id = singleSelectedEdgeId();
+        if (id) store().resetEdgeBend(id);
+      },
+
       focusNode: (id: string) => {
         store().selectNodes([id]);
         void fitView({ nodes: [{ id }], duration: 280, maxZoom: 1.2, padding: 0.6 });

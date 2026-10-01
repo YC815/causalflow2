@@ -88,6 +88,9 @@ function MenuItems({
           <ContextMenuItem onSelect={commands.reverseSelectedEdge}>
             反轉方向
           </ContextMenuItem>
+          <ContextMenuItem onSelect={commands.resetSelectedEdgeBend}>
+            重設彎曲
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onSelect={commands.deleteSelected}>
             刪除
