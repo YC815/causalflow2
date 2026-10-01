@@ -17,7 +17,6 @@ import { useFilesStore } from "@/lib/store/files-store";
 import { displayTitle, type FileMeta, sortByRecent } from "@/lib/store/files";
 import { ConfirmDialog } from "./confirm-dialog";
 import { cardClass, shellBtnPrimary } from "./ui-classes";
-import { useFitAfterSwitch } from "./use-fit-after-switch";
 
 const timeFormat = new Intl.DateTimeFormat("zh-TW", {
   month: "numeric",
@@ -35,12 +34,14 @@ const iconBtn =
 export function FileSidebar({
   collapsed,
   onCollapsedChange: setCollapsed,
+  withFit,
 }: {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  /** 切換檔案後讓新圖入鏡（見 useFitAfterSwitch） */
+  withFit: (fn: () => void) => void;
 }) {
   const formId = useId();
-  const withFit = useFitAfterSwitch();
   const files = useFilesStore((s) => s.files);
   const activeId = useFilesStore((s) => s.activeId);
   const title = useCausalStore((s) => s.title);

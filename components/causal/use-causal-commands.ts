@@ -22,6 +22,7 @@ import { downstreamPosition, nodeRect, siblingPosition } from "@/lib/placement";
 import { type FlowNode, useCausalStore } from "@/lib/store/causal-store";
 import { useFilesStore } from "@/lib/store/files-store";
 import { flowToDocument } from "./flow-adapters";
+import type { FitGraph } from "./use-fit-graph";
 
 /** 新節點以游標為中心放置時的半寬／半高 */
 const NODE_HALF = { x: 70, y: 28 };
@@ -54,6 +55,7 @@ export type CausalCommands = ReturnType<typeof useCausalCommands>;
 
 export function useCausalCommands(
   flowWrapRef: RefObject<HTMLDivElement | null>,
+  fitGraph: FitGraph,
 ) {
   const { screenToFlowPosition, fitView, getViewport, setViewport, setCenter } =
     useReactFlow();
@@ -61,7 +63,7 @@ export function useCausalCommands(
   return useMemo(() => {
     const relayout = (direction: CausalLayoutDirection) => {
       flushSync(() => store().applyLayout(direction));
-      void fitView({ padding: 0.2, duration: 280 });
+      void fitGraph({ duration: 280 });
     };
 
     const ensureVisible = (id: string) => {
@@ -266,7 +268,7 @@ export function useCausalCommands(
 
       focusNode: (id: string) => {
         store().selectNodes([id]);
-        void fitView({ nodes: [{ id }], duration: 280, maxZoom: 1.2, padding: 0.6 });
+        void fitGraph({ nodes: [{ id }], duration: 280, maxZoom: 1.2, ratio: 0.6 });
       },
 
       importText: (text: string): string | null => {
@@ -333,6 +335,7 @@ export function useCausalCommands(
               }),
             );
           }
+          // 擷取的是整個畫面，不避讓面板
           await fitView({ padding: 0.15, duration: 0 });
           await new Promise<void>((r) => {
             requestAnimationFrame(() => requestAnimationFrame(() => r()));
@@ -372,5 +375,5 @@ export function useCausalCommands(
         }
       },
     };
-  }, [fitView, flowWrapRef, getViewport, screenToFlowPosition, setCenter, setViewport]);
+  }, [fitGraph, fitView, flowWrapRef, getViewport, screenToFlowPosition, setCenter, setViewport]);
 }

@@ -13,9 +13,6 @@ import {
   shellBtnPrimary,
 } from "./ui-classes";
 import type { CausalCommands } from "./use-causal-commands";
-import { useStoredFlag } from "./use-stored-flag";
-
-const LS_TOOLS = "causalflow-ui-tools-collapsed";
 
 const detailsClass =
   "group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden";
@@ -24,6 +21,8 @@ const summaryClass =
   "causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none";
 
 type ToolsProps = {
+  toolsCollapsed: boolean;
+  onToolsCollapsedChange: (collapsed: boolean) => void;
   commands: CausalCommands;
   onNewFile: () => void;
   onImportFile: () => void;
@@ -36,14 +35,16 @@ export function Toolbar(
   props: ToolsProps & {
     sidebarCollapsed: boolean;
     onSidebarCollapsedChange: (collapsed: boolean) => void;
+    withFit: (fn: () => void) => void;
   },
 ) {
-  const { sidebarCollapsed, onSidebarCollapsedChange, ...tools } = props;
+  const { sidebarCollapsed, onSidebarCollapsedChange, withFit, ...tools } = props;
   return (
     <>
       <FileSidebar
         collapsed={sidebarCollapsed}
         onCollapsedChange={onSidebarCollapsedChange}
+        withFit={withFit}
       />
       <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-end gap-2 p-3 sm:p-4">
         <div className="pointer-events-auto flex flex-col items-end gap-2">
@@ -55,6 +56,8 @@ export function Toolbar(
 }
 
 function ToolsPanel({
+  toolsCollapsed: collapsed,
+  onToolsCollapsedChange: setCollapsed,
   commands,
   onNewFile,
   onImportFile,
@@ -62,7 +65,6 @@ function ToolsPanel({
   onOpenPalette,
   onOpenShortcuts,
 }: ToolsProps) {
-  const [collapsed, setCollapsed] = useStoredFlag(LS_TOOLS, false);
   const layoutDirection = useCausalStore((s) => s.layoutDirection);
   const canUndo = useCausalStore((s) => s.history.past.length > 0);
   const canRedo = useCausalStore((s) => s.history.future.length > 0);

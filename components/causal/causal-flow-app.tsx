@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 import type { HandleSide } from "@/lib/causal-json";
+import { isNarrowViewport } from "@/lib/panel-insets";
 import { useCausalStore } from "@/lib/store/causal-store";
 import { useFilesStore } from "@/lib/store/files-store";
 import { CanvasContextMenu, type MenuTarget } from "./canvas-context-menu";
@@ -36,6 +37,7 @@ import { modKeyLabel } from "./ui-classes";
 import { hydrateFromStorage, useAutosave } from "./use-autosave";
 import { useCausalCommands } from "./use-causal-commands";
 import { useFitAfterSwitch } from "./use-fit-after-switch";
+import { currentFitPadding, useFitGraph } from "./use-fit-graph";
 import { useHotkeys } from "./use-hotkeys";
 import { useStoredFlag } from "./use-stored-flag";
 
@@ -43,6 +45,9 @@ const nodeTypes = { causal: CausalNode };
 const edgeTypes = { causal: CausalEdge };
 const LS_SIDEBAR = "causalflow-ui-sidebar-collapsed";
 const LS_MINIMAP = "causalflow-ui-minimap-hidden";
+const LS_TOOLS = "causalflow-ui-tools-collapsed";
+/** 從未設定過收合狀態時：窄螢幕預設收合 */
+const collapsedByDefault = () => isNarrowViewport(window.innerWidth);
 
 function asSide(h: string | null | undefined): HandleSide | undefined {
   return h === "in" || h === "out" ? h : undefined;
@@ -59,6 +64,15 @@ function clientPoint(event: MouseEvent | TouchEvent): { x: number; y: number } {
 function isPaneTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element && target.classList.contains("react-flow__pane")
+  );
+}
+
+/** 與 xyflow Controls 內建 Fit View 相同的圖示（未匯出，照抄） */
+function FitViewIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 30">
+      <path d="M3.692 4.63c0-.53.4-.938.939-.938h5.215V0H4.708C2.13 0 0 2.054 0 4.63v5.216h3.692V4.631zM27.354 0h-5.2v3.692h5.17c.53 0 .984.4.984.939v5.215H32V4.631A4.624 4.624 0 0027.354 0zm.954 24.83c0 .532-.4.94-.939.94h-5.215v3.768h5.215c2.577 0 4.631-2.13 4.631-4.707v-5.139h-3.692v5.139zm-23.677.94c-.531 0-.939-.4-.939-.94v-5.138H0v5.139c0 2.577 2.13 4.707 4.708 4.707h5.138V25.77H4.631z" />
+    </svg>
   );
 }
 
@@ -79,10 +93,23 @@ function FlowCanvas() {
   // 改接線頭時 React Flow 也會呼叫 onConnectEnd（早於 onReconnectEnd），此時絕不能建節點
   const reconnectingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const commands = useCausalCommands(flowWrapRef);
+  const [sidebarCollapsed, setSidebarCollapsed] = useStoredFlag(
+    LS_SIDEBAR,
+    collapsedByDefault,
+  );
+  const [toolsCollapsed, setToolsCollapsed] = useStoredFlag(
+    LS_TOOLS,
+    collapsedByDefault,
+  );
+  const fitGraph = useFitGraph({ sidebarCollapsed, toolsCollapsed });
+  // 只在首次入鏡時使用；之後的入鏡都走 fitGraph（呼叫當下才量視窗）
+  const initialFitOptions = useMemo(
+    () => ({ padding: currentFitPadding({ sidebarCollapsed, toolsCollapsed }) }),
+    [sidebarCollapsed, toolsCollapsed],
+  );
+  const commands = useCausalCommands(flowWrapRef, fitGraph);
   const files = useFilesStore((s) => s.files);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useStoredFlag(LS_SIDEBAR, false);
   const [minimapHidden, setMinimapHidden] = useStoredFlag(LS_MINIMAP, false);
   const selectNodes = useCausalStore((s) => s.selectNodes);
   const selectEdge = useCausalStore((s) => s.selectEdge);
@@ -94,7 +121,7 @@ function FlowCanvas() {
   const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
   useHotkeys(commands, { openPalette, openShortcuts });
 
-  const withFit = useFitAfterSwitch();
+  const withFit = useFitAfterSwitch(fitGraph);
   const newFile = useCallback(
     () => withFit(commands.newFile),
     [withFit, commands],
@@ -225,7 +252,7 @@ function FlowCanvas() {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={initialFitOptions}
             minZoom={0.35}
             maxZoom={1.6}
             zoomOnDoubleClick={false}
@@ -245,7 +272,17 @@ function FlowCanvas() {
                 sidebarCollapsed ? "" : "sm:!ml-[283px]"
               }`}
               showInteractive={false}
+              showFitView={false}
             >
+              {/* 取代內建 Fit View：避開兩側面板 */}
+              <ControlButton
+                onClick={() => void fitGraph()}
+                className="react-flow__controls-fitview"
+                title="Fit View"
+                aria-label="Fit View"
+              >
+                <FitViewIcon />
+              </ControlButton>
               <ControlButton
                 onClick={() => setMinimapHidden(!minimapHidden)}
                 title={minimapHidden ? "顯示小地圖" : "隱藏小地圖"}
@@ -274,6 +311,9 @@ function FlowCanvas() {
       <Toolbar
         sidebarCollapsed={sidebarCollapsed}
         onSidebarCollapsedChange={setSidebarCollapsed}
+        toolsCollapsed={toolsCollapsed}
+        onToolsCollapsedChange={setToolsCollapsed}
+        withFit={withFit}
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
         onNewFile={newFile}

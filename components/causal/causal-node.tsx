@@ -78,10 +78,18 @@ export function CausalNode({
   const outPos = flipped ? inSide : outSide;
   const FlipIcon = horizontal ? ArrowLeftRight : ArrowUpDown;
 
-  /** Handle 位置變更後通知 React Flow 重算連線端點，否則邊仍沿用舊的左右座標 */
+  /**
+   * Handle 位置變更後通知 React Flow 重算連線端點，否則邊仍沿用舊的左右座標。
+   * 掛載時不呼叫：ResizeObserver 本來就會量；且 xyflow 12.10.1 的 updateNodeInternals
+   * 忽略 triggerFitView:false，掛載時逐顆觸發會搶走排隊中的 fitView，只對第一顆節點入鏡。
+   */
+  const handleKey = `${orientation}|${flipped}`;
+  const prevHandleKey = useRef(handleKey);
   useLayoutEffect(() => {
+    if (prevHandleKey.current === handleKey) return;
+    prevHandleKey.current = handleKey;
     updateNodeInternals(id);
-  }, [id, orientation, flipped, updateNodeInternals]);
+  }, [id, handleKey, updateNodeInternals]);
 
   return (
     <div
