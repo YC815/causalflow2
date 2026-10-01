@@ -160,4 +160,38 @@ describe("causal store", () => {
     const snap = s().history.past.at(-1)!;
     expect(snap.nodes.some((n) => n.selected)).toBe(false);
   });
+
+  it("cancelling an edit after undo keeps the redo stack", () => {
+    s().addNode({ x: 5, y: 5 });
+    const withNode = s().nodes.length;
+    s().undo();
+    s().startEditing("a");
+    s().finishEditing("A");
+    expect(s().history.future).toHaveLength(1);
+    s().redo();
+    expect(s().nodes).toHaveLength(withNode);
+  });
+
+  it("cancelling a new node after undo keeps the redo stack", () => {
+    s().addNode({ x: 5, y: 5 });
+    const withNode = s().nodes.length;
+    s().undo();
+    s().addNode({ x: 9, y: 9 }, { edit: true });
+    s().finishEditing(null);
+    s().redo();
+    expect(s().nodes).toHaveLength(withNode);
+  });
+
+  it("deleting the node being edited clears editing", () => {
+    const id = s().addNode({ x: 0, y: 0 }, { edit: true });
+    s().selectNodes([id]);
+    s().deleteSelected();
+    expect(s().editing).toBeNull();
+  });
+
+  it("addNode without edit clears a previous editing state", () => {
+    s().startEditing("a");
+    s().addNode({ x: 0, y: 0 });
+    expect(s().editing).toBeNull();
+  });
 });

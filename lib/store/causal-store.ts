@@ -22,7 +22,6 @@ import {
 import type { CausalJsonDocument, CausalPolarity } from "@/lib/causal-json";
 import { instantiateFragment } from "@/lib/clipboard";
 import {
-  discardLast,
   emptyHistory,
   type History,
   record,
@@ -61,6 +60,16 @@ function deselectEdges(edges: FlowEdge[]): FlowEdge[] {
   return edges.map((e) => (e.selected ? { ...e, selected: false } : e));
 }
 
+function clearStaleEditing(
+  s: { editing: EditingState },
+  nodes: FlowNode[],
+): { editing?: null; editingSavedFuture?: Snapshot[] } {
+  if (s.editing && !nodes.some((n) => n.id === s.editing?.id)) {
+    return { editing: null, editingSavedFuture: [] };
+  }
+  return {};
+}
+
 function hasEdge(edges: FlowEdge[], source: string, target: string): boolean {
   return edges.some((e) => e.source === source && e.target === target);
 }
@@ -84,6 +93,7 @@ export type CausalState = {
   defaultBidirectional: boolean;
   history: History<Snapshot>;
   editing: EditingState;
+  editingSavedFuture: Snapshot[];
   toast: string | null;
   exporting: boolean;
 
@@ -151,11 +161,15 @@ export const useCausalStore = create<CausalState>()((set, get) => {
     defaultBidirectional: false,
     history: emptyHistory<Snapshot>(),
     editing: null,
+    editingSavedFuture: [],
     toast: null,
     exporting: false,
 
     onNodesChange: (changes) =>
-      set((s) => ({ nodes: applyNodeChanges(changes, s.nodes) })),
+      set((s) => {
+        const nodes = applyNodeChanges(changes, s.nodes);
+        return { nodes, ...clearStaleEditing(s, nodes) };
+      }),
     onEdgesChange: (changes) =>
       set((s) => ({ edges: applyEdgeChanges(changes, s.edges) })),
 
@@ -198,17 +212,20 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       set({ defaultBidirectional }),
 
     addNode: (position, opts) => {
+      const savedFuture = get().history.future;
       commit();
       const id = `n-${uid()}`;
       set((s) => ({
         nodes: [...deselectNodes(s.nodes), newNode(id, position)],
         edges: deselectEdges(s.edges),
-        editing: opts?.edit ? { id, isNew: true } : s.editing,
+        editing: opts?.edit ? { id, isNew: true } : null,
+        editingSavedFuture: opts?.edit ? savedFuture : [],
       }));
       return id;
     },
 
     addConnectedNode: (anchorId, position, side) => {
+      const savedFuture = get().history.future;
       commit();
       const id = `n-${uid()}`;
       const [source, target] =
@@ -223,6 +240,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
         nodes: [...deselectNodes(s.nodes), newNode(id, position)],
         edges: [...deselectEdges(s.edges), edge],
         editing: { id, isNew: true },
+        editingSavedFuture: savedFuture,
       }));
       return id;
     },
@@ -292,7 +310,12 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       );
       if (doomed.size === 0 && keptEdges.length === edges.length) return;
       commit();
-      set({ nodes: nodes.filter((n) => !doomed.has(n.id)), edges: keptEdges });
+      const nextNodes = nodes.filter((n) => !doomed.has(n.id));
+      set((s) => ({
+        nodes: nextNodes,
+        edges: keptEdges,
+        ...clearStaleEditing(s, nextNodes),
+      }));
     },
 
     selectNodes: (ids) => {
@@ -341,8 +364,9 @@ export const useCausalStore = create<CausalState>()((set, get) => {
 
     startEditing: (id) => {
       if (!get().nodes.some((n) => n.id === id)) return;
+      const savedFuture = get().history.future;
       commit();
-      set({ editing: { id, isNew: false } });
+      set({ editing: { id, isNew: false }, editingSavedFuture: savedFuture });
     },
 
     finishEditing: (label) => {
@@ -358,13 +382,21 @@ export const useCausalStore = create<CausalState>()((set, get) => {
           edges: s.edges.filter(
             (e) => e.source !== editing.id && e.target !== editing.id,
           ),
-          history: discardLast(s.history),
+          history: { past: s.history.past.slice(0, -1), future: s.editingSavedFuture },
           editing: null,
+          editingSavedFuture: [],
         }));
         return;
       }
       if (!text || (!editing.isNew && text === previous)) {
-        set((s) => ({ history: discardLast(s.history), editing: null }));
+        set((s) => ({
+          history: {
+            past: s.history.past.slice(0, -1),
+            future: s.editingSavedFuture,
+          },
+          editing: null,
+          editingSavedFuture: [],
+        }));
         return;
       }
       set((s) => ({
@@ -372,6 +404,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
           n.id === editing.id ? { ...n, data: { ...n.data, label: text } } : n,
         ),
         editing: null,
+        editingSavedFuture: [],
       }));
     },
 
