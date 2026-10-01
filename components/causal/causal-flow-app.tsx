@@ -116,6 +116,7 @@ function FlowCanvas() {
   const selectEdge = useCausalStore((s) => s.selectEdge);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
@@ -148,6 +149,7 @@ function FlowCanvas() {
       { id: "export-pdf-p", label: "匯出 PDF（直式 A4）", run: () => void commands.exportImage("pdf", "portrait") },
       { id: "export-pdf-l", label: "匯出 PDF（橫式 A4）", run: () => void commands.exportImage("pdf", "landscape") },
       { id: "new-file", label: "新檔案", run: newFile },
+      { id: "json-guide", label: "JSON／AI 格式說明", run: () => setGuideOpen(true) },
       { id: "shortcuts", label: "快捷鍵一覽", shortcut: "?", run: openShortcuts },
     ];
   }, [commands, newFile, openShortcuts]);
@@ -322,8 +324,8 @@ function FlowCanvas() {
         withFit={withFit}
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
-        onNewFile={newFile}
         onOpenJsonEditor={() => setJsonEditorOpen(true)}
+        onOpenJsonGuide={() => setGuideOpen(true)}
         onOpenPalette={openPalette}
         onOpenShortcuts={openShortcuts}
       />
@@ -360,7 +362,7 @@ function FlowCanvas() {
         </div>
       )}
 
-      <JsonGuidePanel />
+      <JsonGuidePanel open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   );
 }
