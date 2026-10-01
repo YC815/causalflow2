@@ -25,7 +25,7 @@ function isOwnedByOtherUi(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
     target.closest(
-      'input, textarea, select, button, a[href], summary, [contenteditable="true"], [role="dialog"], [role="menu"]',
+      'input, textarea, select, button, a[href], summary, [contenteditable="true"], [role="dialog"], [role="menu"], [role="navigation"]',
     ) !== null
   );
 }

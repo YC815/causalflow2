@@ -11,6 +11,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { useCausalStore } from "@/lib/store/causal-store";
+import { displayTitle, type FileMeta, sortByRecent } from "@/lib/store/files";
 
 export type PaletteAction = {
   id: string;
@@ -23,11 +24,15 @@ export function CommandPalette({
   open,
   onOpenChange,
   actions,
+  files,
+  onOpenFile,
   onFocusNode,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: PaletteAction[];
+  files: FileMeta[];
+  onOpenFile: (id: string) => void;
   onFocusNode: (id: string) => void;
 }) {
   const nodes = useCausalStore((s) => s.nodes);
@@ -42,7 +47,7 @@ export function CommandPalette({
       open={open}
       onOpenChange={onOpenChange}
       title="命令面板"
-      description="搜尋動作或節點"
+      description="搜尋動作、檔案或節點"
     >
       <Command className="causal-ui">
         <CommandInput placeholder="輸入動作或節點文字…" />
@@ -58,6 +63,18 @@ export function CommandPalette({
               >
                 {a.label}
                 {a.shortcut && <CommandShortcut>{a.shortcut}</CommandShortcut>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandGroup heading="檔案">
+            {sortByRecent(files).map((file) => (
+              <CommandItem
+                key={file.id}
+                value={file.id}
+                keywords={[displayTitle(file.title)]}
+                onSelect={() => choose(() => onOpenFile(file.id))}
+              >
+                {displayTitle(file.title)}
               </CommandItem>
             ))}
           </CommandGroup>

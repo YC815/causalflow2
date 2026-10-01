@@ -21,11 +21,12 @@ class MemoryStorage implements FileStorage {
   data = new Map<string, string>();
   writes = 0;
   failWrites = false;
+  failOn: ((key: string) => boolean) | null = null;
   getItem(key: string) {
     return this.data.get(key) ?? null;
   }
   setItem(key: string, value: string) {
-    if (this.failWrites) throw new Error("quota");
+    if (this.failWrites || this.failOn?.(key)) throw new Error("quota");
     this.writes += 1;
     this.data.set(key, value);
   }
@@ -245,6 +246,57 @@ describe("files store", () => {
     expect(f().activeId).not.toBe(a);
     expect(c().nodes).toHaveLength(0);
     expect(storage.getItem(fileDocKey(a))).toBeNull();
+  });
+
+  it("deleting the last file never persists an empty index", () => {
+    init();
+    const a = f().activeId!;
+    const seen: string[] = [];
+    const orig = storage.setItem.bind(storage);
+    storage.setItem = (key: string, value: string) => {
+      if (key === INDEX_KEY) seen.push(value);
+      orig(key, value);
+    };
+    f().deleteFile(a);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((v) => (JSON.parse(v) as unknown[]).length > 0)).toBe(true);
+    expect(loadIndex(storage)).toHaveLength(1);
+    expect(loadIndex(storage)[0].id).toBe(f().activeId);
+  });
+
+  it("deleting the last file keeps it when the blank file cannot be created", () => {
+    init();
+    const a = f().activeId!;
+    const keys = [...storage.data.keys()].sort();
+    storage.failOn = (key) => key.startsWith("causalflow-file-v1:");
+    f().deleteFile(a);
+    expect(f().activeId).toBe(a);
+    expect(f().files.map((m) => m.id)).toEqual([a]);
+    expect([...storage.data.keys()].sort()).toEqual(keys);
+  });
+
+  it("createFile rolls back when writing the new doc fails", () => {
+    init();
+    const a = f().activeId!;
+    const keys = [...storage.data.keys()].sort();
+    storage.failOn = (key) => key.startsWith("causalflow-file-v1:");
+    expect(f().createFile(DOC)).toBeNull();
+    expect(f().activeId).toBe(a);
+    expect(f().files.map((m) => m.id)).toEqual([a]);
+    expect([...storage.data.keys()].sort()).toEqual(keys);
+    expect(loadIndex(storage).map((m) => m.id)).toEqual([a]);
+  });
+
+  it("createFile rolls back when writing the index fails", () => {
+    init();
+    const a = f().activeId!;
+    const keys = [...storage.data.keys()].sort();
+    storage.failOn = (key) => key === INDEX_KEY;
+    expect(f().createFile(DOC)).toBeNull();
+    expect(f().activeId).toBe(a);
+    expect(f().files.map((m) => m.id)).toEqual([a]);
+    expect([...storage.data.keys()].sort()).toEqual(keys);
+    expect(loadIndex(storage).map((m) => m.id)).toEqual([a]);
   });
 
   it("saveActive skips writing when content is unchanged", () => {

@@ -1,5 +1,8 @@
 import type { CausalPolarity } from "@/lib/causal-json";
 
+export const cardClass =
+  "rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md";
+
 export const shellBtn =
   "causal-ui rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2 py-1.5 text-xs text-[var(--causal-ink)] transition hover:bg-black/[0.04] disabled:cursor-not-allowed disabled:opacity-50";
 

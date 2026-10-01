@@ -1,10 +1,11 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
-import { useId, useRef } from "react";
 import { useCausalStore } from "@/lib/store/causal-store";
+import { FileSidebar } from "./file-sidebar";
 import { Inspector } from "./inspector";
 import {
+  cardClass,
   chipClass,
   modKeyLabel,
   POLARITY_OPTIONS,
@@ -14,11 +15,7 @@ import {
 import type { CausalCommands } from "./use-causal-commands";
 import { useStoredFlag } from "./use-stored-flag";
 
-const LS_LEFT = "causalflow-ui-left-collapsed";
 const LS_TOOLS = "causalflow-ui-tools-collapsed";
-
-const cardClass =
-  "rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md";
 
 const detailsClass =
   "group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden";
@@ -37,82 +34,14 @@ type ToolbarProps = {
 
 export function Toolbar(props: ToolbarProps) {
   return (
-    <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
-      <div className="pointer-events-auto min-w-0">
-        <TitleCard />
-      </div>
-      <div className="pointer-events-auto flex flex-col items-end gap-2">
-        <ToolsPanel {...props} />
-      </div>
-    </header>
-  );
-}
-
-function TitleCard() {
-  const formId = useId();
-  const title = useCausalStore((s) => s.title);
-  const setTitle = useCausalStore((s) => s.setTitle);
-  const commit = useCausalStore((s) => s.commit);
-  const dirtyRef = useRef(false);
-  const [collapsed, setCollapsed] = useStoredFlag(LS_LEFT, false);
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={() => setCollapsed(false)}
-        className="causal-ui group flex max-w-full items-center gap-2 rounded-full border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 py-2 pl-3 pr-3 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md transition hover:border-[var(--causal-accent)] hover:shadow-lg"
-        aria-expanded={false}
-      >
-        <span className="causal-display truncate text-sm font-semibold tracking-tight text-[var(--causal-ink)]">
-          CausalFlow
-        </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--causal-ink-muted)] transition group-hover:text-[var(--causal-accent)]" />
-      </button>
-    );
-  }
-
-  return (
-    <div className={`relative max-w-[min(100%,18rem)] p-3 ${cardClass}`}>
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <h1 className="causal-display text-lg leading-tight tracking-tight text-[var(--causal-ink)]">
-            CausalFlow
-          </h1>
-          <p className="causal-ui mt-1 text-[11px] leading-snug text-[var(--causal-ink-muted)]">
-            因果圖 · 自動存檔 · 按 ? 看快捷鍵
-          </p>
+    <>
+      <FileSidebar />
+      <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-end gap-2 p-3 sm:p-4">
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <ToolsPanel {...props} />
         </div>
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          className="causal-ui -mr-0.5 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]"
-          aria-label="收合標題區"
-          title="收合"
-        >
-          <ChevronUp className="h-4 w-4" />
-        </button>
-      </div>
-      <label htmlFor={`${formId}-title`} className="sr-only">
-        圖標題
-      </label>
-      <input
-        id={`${formId}-title`}
-        value={title}
-        onFocus={() => {
-          dirtyRef.current = false;
-        }}
-        onChange={(e) => {
-          if (!dirtyRef.current) {
-            commit();
-            dirtyRef.current = true;
-          }
-          setTitle(e.target.value);
-        }}
-        placeholder="圖標題（可選）"
-        className="causal-ui mt-2.5 w-full rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2.5 py-1.5 text-sm text-[var(--causal-ink)] placeholder:text-[var(--causal-ink-muted)]"
-      />
-    </div>
+      </header>
+    </>
   );
 }
 

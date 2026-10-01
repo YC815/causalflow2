@@ -10,6 +10,7 @@ import {
   type OnConnectEnd,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Map as MapIcon } from "lucide-react";
@@ -22,6 +23,7 @@ import {
 } from "react";
 import type { HandleSide } from "@/lib/causal-json";
 import { useCausalStore } from "@/lib/store/causal-store";
+import { useFilesStore } from "@/lib/store/files-store";
 import { CanvasContextMenu, type MenuTarget } from "./canvas-context-menu";
 import { CausalEdge } from "./causal-edge";
 import { CausalNode } from "./causal-node";
@@ -77,6 +79,8 @@ function FlowCanvas() {
   const reconnectingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commands = useCausalCommands(flowWrapRef);
+  const { fitView } = useReactFlow();
+  const files = useFilesStore((s) => s.files);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [minimapHidden, setMinimapHidden] = useStoredFlag(LS_MINIMAP, false);
   const selectNodes = useCausalStore((s) => s.selectNodes);
@@ -88,6 +92,27 @@ function FlowCanvas() {
   const openPalette = useCallback(() => setPaletteOpen(true), []);
   const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
   useHotkeys(commands, { openPalette, openShortcuts });
+
+  // 切換／新增檔案後讓新圖入鏡
+  const fitSoon = useCallback(() => {
+    requestAnimationFrame(() => void fitView({ padding: 0.2, duration: 0 }));
+  }, [fitView]);
+  const withFit = useCallback(
+    (fn: () => void) => {
+      const before = useFilesStore.getState().activeId;
+      fn();
+      if (useFilesStore.getState().activeId !== before) fitSoon();
+    },
+    [fitSoon],
+  );
+  const newFile = useCallback(
+    () => withFit(commands.newFile),
+    [withFit, commands],
+  );
+  const openFile = useCallback(
+    (id: string) => withFit(() => void useFilesStore.getState().openFile(id)),
+    [withFit],
+  );
 
   const paletteActions = useMemo<PaletteAction[]>(() => {
     const mod = modKeyLabel();
@@ -104,10 +129,10 @@ function FlowCanvas() {
       { id: "export-png", label: "匯出 PNG", run: () => void commands.exportImage("png") },
       { id: "export-pdf-p", label: "匯出 PDF（直式 A4）", run: () => void commands.exportImage("pdf", "portrait") },
       { id: "export-pdf-l", label: "匯出 PDF（橫式 A4）", run: () => void commands.exportImage("pdf", "landscape") },
-      { id: "new-file", label: "新檔案", run: commands.newFile },
+      { id: "new-file", label: "新檔案", run: newFile },
       { id: "shortcuts", label: "快捷鍵一覽", shortcut: "?", run: openShortcuts },
     ];
-  }, [commands, openShortcuts]);
+  }, [commands, newFile, openShortcuts]);
 
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, state) => {
@@ -138,7 +163,11 @@ function FlowCanvas() {
   const onFile = async (file: File | null) => {
     if (!file) return;
     // 成功時 importAsNewFile 自己會 toast
-    const err = commands.importAsNewFile(await file.text());
+    const text = await file.text();
+    let err: string | null = null;
+    withFit(() => {
+      err = commands.importAsNewFile(text);
+    });
     if (err) showToast(err);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -253,7 +282,7 @@ function FlowCanvas() {
       <Toolbar
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
-        onNewFile={commands.newFile}
+        onNewFile={newFile}
         onOpenJsonEditor={() => setJsonEditorOpen(true)}
         onOpenPalette={openPalette}
         onOpenShortcuts={openShortcuts}
@@ -276,6 +305,8 @@ function FlowCanvas() {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         actions={paletteActions}
+        files={files}
+        onOpenFile={openFile}
         onFocusNode={commands.focusNode}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

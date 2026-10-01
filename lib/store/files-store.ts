@@ -136,8 +136,10 @@ export const useFilesStore = create<FilesState>()((set, get) => {
   const addFile = (
     doc: CausalJsonDocument,
     layout: CausalLayoutDirection,
+    /** 目前檔案即將被丟棄（刪除最後一個檔案）時不必先存 */
+    skipSave = false,
   ): string | null => {
-    if (!storage || !saveBeforeLeaving()) return null;
+    if (!storage || (!skipSave && !saveBeforeLeaving())) return null;
     const id = newId();
     const ok =
       writeFileDoc(storage, id, doc) &&
@@ -217,19 +219,19 @@ export const useFilesStore = create<FilesState>()((set, get) => {
 
     deleteFile: (id) => {
       if (!storage) return;
-      if (!get().files.some((f) => f.id === id)) return;
+      const before = get().files;
+      if (!before.some((f) => f.id === id)) return;
+      const wasActive = id === get().activeId;
+      const isLast = before.length === 1;
+      // 最後一個檔案：先建好空白檔再刪舊檔，索引絕不落成空陣列
+      if (isLast && !addFile(blankDocument(), "LR", wasActive)) return;
       removeFile(storage, id);
       lastSaved.delete(id);
-      const wasActive = id === get().activeId;
+      const reopen = wasActive && !isLast;
       // 先放掉 activeId，避免把畫面內容存回已刪除的檔案
-      if (wasActive) set({ activeId: null });
+      if (reopen) set({ activeId: null });
       updateIndex((files) => files.filter((f) => f.id !== id));
-      const files = get().files;
-      if (files.length === 0) {
-        get().createFile();
-        return;
-      }
-      if (wasActive) load(sortByRecent(files)[0].id);
+      if (reopen) load(sortByRecent(get().files)[0].id);
     },
 
     saveActive: () => {
