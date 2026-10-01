@@ -15,18 +15,24 @@ import { Map as MapIcon } from "lucide-react";
 import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useCausalStore } from "@/lib/store/causal-store";
+import { CanvasContextMenu, type MenuTarget } from "./canvas-context-menu";
 import { CausalEdge } from "./causal-edge";
 import { CausalNode } from "./causal-node";
 import { CausalOrientationProvider } from "./causal-orientation-context";
+import { CommandPalette, type PaletteAction } from "./command-palette";
 import { JsonEditorDialog } from "./json-editor-dialog";
 import { JsonGuidePanel } from "./json-guide-panel";
+import { ShortcutsDialog } from "./shortcuts-dialog";
 import { Toolbar } from "./toolbar";
+import { modKeyLabel } from "./ui-classes";
 import { hydrateFromStorage, useAutosave } from "./use-autosave";
 import { useCausalCommands } from "./use-causal-commands";
+import { useHotkeys } from "./use-hotkeys";
 import { useStoredFlag } from "./use-stored-flag";
 
 const nodeTypes = { causal: CausalNode };
@@ -64,6 +70,34 @@ function FlowCanvas() {
   const commands = useCausalCommands(flowWrapRef);
   const [jsonEditorOpen, setJsonEditorOpen] = useState(false);
   const [minimapHidden, setMinimapHidden] = useStoredFlag(LS_MINIMAP, false);
+  const selectNodes = useCausalStore((s) => s.selectNodes);
+  const selectEdge = useCausalStore((s) => s.selectEdge);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  useHotkeys(commands, { openPalette, openShortcuts });
+
+  const paletteActions = useMemo<PaletteAction[]>(() => {
+    const mod = modKeyLabel();
+    return [
+      { id: "add", label: "新增節點", run: commands.addNodeAtCenter },
+      { id: "layout", label: "一鍵排版", shortcut: `${mod}L`, run: commands.autoLayout },
+      { id: "orientation", label: "切換橫式／直式", run: commands.toggleOrientation },
+      { id: "undo", label: "復原", shortcut: `${mod}Z`, run: commands.undo },
+      { id: "redo", label: "重做", shortcut: `${mod}⇧Z`, run: commands.redo },
+      { id: "import", label: "匯入 JSON", run: () => fileInputRef.current?.click() },
+      { id: "export-json", label: "匯出 JSON", run: commands.exportJson },
+      { id: "edit-json", label: "查看／編輯 JSON", run: () => setJsonEditorOpen(true) },
+      { id: "export-png", label: "匯出 PNG", run: () => void commands.exportImage("png") },
+      { id: "export-pdf-p", label: "匯出 PDF（直式 A4）", run: () => void commands.exportImage("pdf", "portrait") },
+      { id: "export-pdf-l", label: "匯出 PDF（橫式 A4）", run: () => void commands.exportImage("pdf", "landscape") },
+      { id: "blank", label: "新空白圖", run: commands.newBlank },
+      { id: "shortcuts", label: "快捷鍵一覽", shortcut: "?", run: openShortcuts },
+    ];
+  }, [commands, openShortcuts]);
 
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, state) => {
@@ -99,6 +133,7 @@ function FlowCanvas() {
       <CausalOrientationProvider
         orientation={layoutDirection === "LR" ? "horizontal" : "vertical"}
       >
+        <CanvasContextMenu target={menuTarget} commands={commands}>
         <div
           ref={flowWrapRef}
           className="h-full w-full min-h-0"
@@ -120,6 +155,22 @@ function FlowCanvas() {
               return true;
             }}
             onNodeDoubleClick={(_, node) => commands.editNode(node.id)}
+            onNodeContextMenu={(_, node) => {
+              if (!node.selected) selectNodes([node.id]);
+              setMenuTarget(
+                nodes.filter((n) => n.selected).length > 1 && node.selected
+                  ? { kind: "selection" }
+                  : { kind: "node" },
+              );
+            }}
+            onSelectionContextMenu={() => setMenuTarget({ kind: "selection" })}
+            onEdgeContextMenu={(_, edge) => {
+              selectEdge(edge.id);
+              setMenuTarget({ kind: "edge" });
+            }}
+            onPaneContextMenu={(e) =>
+              setMenuTarget({ kind: "pane", screen: { x: e.clientX, y: e.clientY } })
+            }
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -164,12 +215,15 @@ function FlowCanvas() {
             )}
           </ReactFlow>
         </div>
+        </CanvasContextMenu>
       </CausalOrientationProvider>
 
       <Toolbar
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
         onOpenJsonEditor={() => setJsonEditorOpen(true)}
+        onOpenPalette={openPalette}
+        onOpenShortcuts={openShortcuts}
       />
       <input
         ref={fileInputRef}
@@ -185,6 +239,13 @@ function FlowCanvas() {
           onClose={() => setJsonEditorOpen(false)}
         />
       )}
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        actions={paletteActions}
+        onFocusNode={commands.focusNode}
+      />
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       {toast && (
         <div
