@@ -1,0 +1,297 @@
+"use client";
+
+import { ChevronDown, ChevronUp, Plus, SlidersHorizontal } from "lucide-react";
+import { useId, useRef } from "react";
+import { useCausalStore } from "@/lib/store/causal-store";
+import { Inspector } from "./inspector";
+import {
+  chipClass,
+  modKeyLabel,
+  POLARITY_OPTIONS,
+  shellBtn,
+  shellBtnPrimary,
+} from "./ui-classes";
+import type { CausalCommands } from "./use-causal-commands";
+import { useStoredFlag } from "./use-stored-flag";
+
+const LS_LEFT = "causalflow-ui-left-collapsed";
+const LS_TOOLS = "causalflow-ui-tools-collapsed";
+
+const cardClass =
+  "rounded-2xl border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md";
+
+const detailsClass =
+  "group rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] [&_summary::-webkit-details-marker]:hidden";
+
+const summaryClass =
+  "causal-ui flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 text-xs font-medium text-[var(--causal-ink)] marker:content-none";
+
+type ToolbarProps = {
+  commands: CausalCommands;
+  onImportFile: () => void;
+  onOpenJsonEditor: () => void;
+  onOpenPalette?: () => void;
+  onOpenShortcuts?: () => void;
+};
+
+export function Toolbar(props: ToolbarProps) {
+  return (
+    <header className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
+      <div className="pointer-events-auto min-w-0">
+        <TitleCard />
+      </div>
+      <div className="pointer-events-auto flex flex-col items-end gap-2">
+        <ToolsPanel {...props} />
+      </div>
+    </header>
+  );
+}
+
+function TitleCard() {
+  const formId = useId();
+  const title = useCausalStore((s) => s.title);
+  const setTitle = useCausalStore((s) => s.setTitle);
+  const commit = useCausalStore((s) => s.commit);
+  const dirtyRef = useRef(false);
+  const [collapsed, setCollapsed] = useStoredFlag(LS_LEFT, false);
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        className="causal-ui group flex max-w-full items-center gap-2 rounded-full border border-[var(--causal-node-border)] bg-[var(--causal-paper)]/95 py-2 pl-3 pr-3 shadow-md ring-1 ring-black/[0.04] backdrop-blur-md transition hover:border-[var(--causal-accent)] hover:shadow-lg"
+        aria-expanded={false}
+      >
+        <span className="causal-display truncate text-sm font-semibold tracking-tight text-[var(--causal-ink)]">
+          CausalFlow
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--causal-ink-muted)] transition group-hover:text-[var(--causal-accent)]" />
+      </button>
+    );
+  }
+
+  return (
+    <div className={`relative max-w-[min(100%,18rem)] p-3 ${cardClass}`}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="causal-display text-lg leading-tight tracking-tight text-[var(--causal-ink)]">
+            CausalFlow
+          </h1>
+          <p className="causal-ui mt-1 text-[11px] leading-snug text-[var(--causal-ink-muted)]">
+            因果圖 · 自動存檔 · 按 ? 看快捷鍵
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="causal-ui -mr-0.5 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]"
+          aria-label="收合標題區"
+          title="收合"
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+      </div>
+      <label htmlFor={`${formId}-title`} className="sr-only">
+        圖標題
+      </label>
+      <input
+        id={`${formId}-title`}
+        value={title}
+        onFocus={() => {
+          dirtyRef.current = false;
+        }}
+        onChange={(e) => {
+          if (!dirtyRef.current) {
+            commit();
+            dirtyRef.current = true;
+          }
+          setTitle(e.target.value);
+        }}
+        placeholder="圖標題（可選）"
+        className="causal-ui mt-2.5 w-full rounded-lg border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] px-2.5 py-1.5 text-sm text-[var(--causal-ink)] placeholder:text-[var(--causal-ink-muted)]"
+      />
+    </div>
+  );
+}
+
+function ToolsPanel({
+  commands,
+  onImportFile,
+  onOpenJsonEditor,
+  onOpenPalette,
+  onOpenShortcuts,
+}: ToolbarProps) {
+  const [collapsed, setCollapsed] = useStoredFlag(LS_TOOLS, false);
+  const layoutDirection = useCausalStore((s) => s.layoutDirection);
+  const canUndo = useCausalStore((s) => s.history.past.length > 0);
+  const canRedo = useCausalStore((s) => s.history.future.length > 0);
+  const exporting = useCausalStore((s) => s.exporting);
+  const defaultPolarity = useCausalStore((s) => s.defaultPolarity);
+  const defaultBidirectional = useCausalStore((s) => s.defaultBidirectional);
+  const setDefaultPolarity = useCausalStore((s) => s.setDefaultPolarity);
+  const setDefaultBidirectional = useCausalStore(
+    (s) => s.setDefaultBidirectional,
+  );
+  const mod = modKeyLabel();
+
+  if (collapsed) {
+    return (
+      <div className={`flex flex-col gap-1.5 p-1.5 ${cardClass}`}>
+        <button
+          type="button"
+          onClick={commands.addNodeAtCenter}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--causal-accent)] text-white shadow-sm transition hover:opacity-90"
+          title="新增節點"
+          aria-label="新增節點"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--causal-node-border)] bg-[var(--causal-paper-2)] text-[var(--causal-ink)] transition hover:bg-black/[0.05]"
+          title="展開工具"
+          aria-expanded={false}
+          aria-label="展開工具"
+        >
+          <SlidersHorizontal className="h-5 w-5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <aside className={`w-[min(calc(100vw-1.5rem),17.5rem)] ${cardClass}`}>
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--causal-node-border)] px-3 py-2">
+        <span className="causal-ui text-xs font-medium tracking-wide text-[var(--causal-ink-muted)]">
+          工具
+        </span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          className="causal-ui flex h-8 w-8 items-center justify-center rounded-lg text-[var(--causal-ink-muted)] transition hover:bg-black/[0.05] hover:text-[var(--causal-ink)]"
+          aria-label="收合工具列"
+          title="收合"
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="max-h-[min(70vh,calc(100dvh-8rem))] space-y-2.5 overflow-y-auto p-3">
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={commands.addNodeAtCenter} className={shellBtnPrimary}>
+            新增節點
+          </button>
+          <button type="button" onClick={commands.autoLayout} className={shellBtn} title={`${mod}+L`}>
+            一鍵排版
+          </button>
+          <button
+            type="button"
+            onClick={commands.toggleOrientation}
+            title={
+              layoutDirection === "LR"
+                ? "橫式版面：改為直式並重新排版"
+                : "直式版面：改為橫式並重新排版"
+            }
+            className={shellBtn}
+          >
+            {layoutDirection === "LR" ? "切直式" : "切橫式"}
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" disabled={!canUndo} onClick={commands.undo} className={shellBtn} title={`${mod}+Z`}>
+            復原
+          </button>
+          <button type="button" disabled={!canRedo} onClick={commands.redo} className={shellBtn} title={`${mod}+Shift+Z`}>
+            重做
+          </button>
+          <button type="button" onClick={commands.newBlank} className={shellBtn}>
+            新空白圖
+          </button>
+          {onOpenPalette && (
+            <button type="button" onClick={onOpenPalette} className={shellBtn}>
+              命令 {mod}K
+            </button>
+          )}
+          {onOpenShortcuts && (
+            <button type="button" onClick={onOpenShortcuts} className={shellBtn}>
+              快捷鍵 ?
+            </button>
+          )}
+        </div>
+
+        <details open className={detailsClass}>
+          <summary className={summaryClass}>
+            <span>匯入／匯出 JSON</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
+          </summary>
+          <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
+            <button type="button" onClick={onImportFile} className={shellBtn}>
+              匯入 JSON
+            </button>
+            <button type="button" onClick={commands.exportJson} className={shellBtn}>
+              匯出 JSON
+            </button>
+            <button type="button" onClick={onOpenJsonEditor} className={shellBtn}>
+              查看／編輯 JSON
+            </button>
+          </div>
+        </details>
+
+        <details open className={detailsClass}>
+          <summary className={summaryClass}>
+            <span>匯出圖檔</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--causal-ink-muted)] transition group-open:rotate-180" />
+          </summary>
+          <div className="flex flex-wrap gap-1.5 border-t border-[var(--causal-node-border)] px-2.5 pb-2.5 pt-2">
+            <button type="button" disabled={exporting} onClick={() => void commands.exportImage("png")} className={shellBtn}>
+              匯出 PNG 圖檔
+            </button>
+            <button type="button" disabled={exporting} onClick={() => void commands.exportImage("pdf", "portrait")} className={shellBtn}>
+              匯出 PDF（直式 A4）
+            </button>
+            <button type="button" disabled={exporting} onClick={() => void commands.exportImage("pdf", "landscape")} className={shellBtn}>
+              匯出 PDF（橫式 A4）
+            </button>
+          </div>
+        </details>
+
+        <div>
+          <p className="causal-ui text-[10px] font-semibold uppercase tracking-wider text-[var(--causal-ink-muted)]">
+            新連線預設
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => setDefaultBidirectional(false)}
+              className={chipClass(!defaultBidirectional, "bg-[var(--causal-accent-muted)]")}
+            >
+              單向
+            </button>
+            <button
+              type="button"
+              onClick={() => setDefaultBidirectional(true)}
+              className={chipClass(defaultBidirectional, "bg-[var(--causal-accent-muted)]")}
+            >
+              雙向
+            </button>
+            {POLARITY_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setDefaultPolarity(o.value)}
+                className={chipClass(defaultPolarity === o.value, o.activeClass)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Inspector />
+      </div>
+    </aside>
+  );
+}
