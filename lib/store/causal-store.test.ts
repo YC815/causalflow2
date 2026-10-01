@@ -157,13 +157,20 @@ describe("causal store", () => {
     expect(s().nodes.find((n) => n.id === "a")?.position).toEqual({ x: 0, y: 0 });
   });
 
-  it("newBlank clears the document and is undoable", () => {
-    s().newBlank();
-    expect(s().nodes).toHaveLength(0);
-    expect(s().title).toBe("");
-    s().undo();
-    expect(s().nodes).toHaveLength(3);
-    expect(s().title).toBe("t");
+  it("loadDocument resets history, editing and selection", () => {
+    s().addNode({ x: 0, y: 0 }, { edit: true });
+    s().selectAll();
+    expect(s().history.past.length).toBeGreaterThan(0);
+    s().loadDocument({ ...DOC, title: "x" }, "TB");
+    expect(s().history.past).toHaveLength(0);
+    expect(s().history.future).toHaveLength(0);
+    expect(s().editing).toBeNull();
+    expect(s().editingSavedFuture).toHaveLength(0);
+    expect(s().nodes.some((n) => n.selected)).toBe(false);
+    expect(s().edges.some((e) => e.selected)).toBe(false);
+    expect(ids()).toEqual(["a", "b", "c"]);
+    expect(s().title).toBe("x");
+    expect(s().layoutDirection).toBe("TB");
   });
 
   it("snapshots never carry selection", () => {

@@ -1,28 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { SAMPLE_CAUSAL_DOCUMENT } from "@/lib/sample-causal";
 import { useCausalStore } from "@/lib/store/causal-store";
-import {
-  loadStoredDocument,
-  loadStoredLayout,
-  saveStoredDocument,
-  saveStoredLayout,
-  type StorageLike,
-} from "@/lib/store/persistence";
-import { flowToDocument } from "./flow-adapters";
+import type { FileStorage } from "@/lib/store/files";
+import { useFilesStore } from "@/lib/store/files-store";
 
 const SAVE_DEBOUNCE_MS = 500;
 
-const unavailableStorage: StorageLike = {
+const unavailableStorage: FileStorage = {
   getItem: () => null,
   setItem: () => {
     throw new Error("localStorage unavailable");
   },
+  removeItem: () => undefined,
 };
 
 /** 隱私模式下存取 window.localStorage 本身就可能丟例外 */
-function browserStorage(): StorageLike {
+function browserStorage(): FileStorage {
   try {
     return window.localStorage;
   } catch {
@@ -31,18 +25,17 @@ function browserStorage(): StorageLike {
 }
 
 export function hydrateFromStorage(): void {
-  const storage = browserStorage();
-  const { doc, status } = loadStoredDocument(storage, SAMPLE_CAUSAL_DOCUMENT);
-  const store = useCausalStore.getState();
-  store.replaceDocument(doc, loadStoredLayout(storage));
-  if (status === "corrupt") {
-    store.showToast("存檔損毀，已載入範例（原資料已備份）");
+  const { corrupt } = useFilesStore.getState().init(browserStorage());
+  const { showToast } = useCausalStore.getState();
+  if (corrupt === "legacy") {
+    showToast("存檔損毀，已載入範例（原資料已備份）");
+  } else if (corrupt === "index") {
+    showToast("檔案清單損毀，已重建（原資料已備份）");
   }
 }
 
 export function useAutosave(): void {
   useEffect(() => {
-    const storage = browserStorage();
     let timer: number | undefined;
     let warned = false;
 
@@ -54,16 +47,10 @@ export function useAutosave(): void {
         timer = window.setTimeout(save, SAVE_DEBOUNCE_MS);
         return;
       }
-      const { nodes, edges, title, layoutDirection, showToast } =
-        useCausalStore.getState();
-      const ok = saveStoredDocument(
-        storage,
-        flowToDocument(nodes, edges, title.trim() || undefined),
-      );
-      saveStoredLayout(storage, layoutDirection);
+      const ok = useFilesStore.getState().saveActive();
       if (!ok && !warned) {
         warned = true;
-        showToast("無法自動存檔");
+        useCausalStore.getState().showToast("無法自動存檔");
       }
     };
 

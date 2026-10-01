@@ -20,6 +20,7 @@ import { extractFragment } from "@/lib/clipboard";
 import { type ArrowDirection, findNeighbor } from "@/lib/navigation";
 import { downstreamPosition, nodeRect, siblingPosition } from "@/lib/placement";
 import { type FlowNode, useCausalStore } from "@/lib/store/causal-store";
+import { useFilesStore } from "@/lib/store/files-store";
 import { flowToDocument } from "./flow-adapters";
 
 /** 新節點以游標為中心放置時的半寬／半高 */
@@ -104,9 +105,8 @@ export function useCausalCommands(
       toggleOrientation: () =>
         relayout(store().layoutDirection === "LR" ? "TB" : "LR"),
 
-      newBlank: () => {
-        store().newBlank();
-        store().showToast("已清空，可按 ⌘/Ctrl+Z 復原");
+      newFile: () => {
+        useFilesStore.getState().createFile();
       },
 
       addNodeAtCenter: () => {
@@ -276,6 +276,19 @@ export function useCausalCommands(
         } catch (err) {
           return err instanceof CausalJsonError ? err.message : "匯入失敗";
         }
+      },
+
+      /** 匯入的 JSON 檔一律開成新檔案，不覆蓋目前的圖 */
+      importAsNewFile: (text: string): string | null => {
+        let doc: CausalJsonDocument;
+        try {
+          doc = parseCausalJson(text);
+        } catch (err) {
+          return err instanceof CausalJsonError ? err.message : "匯入失敗";
+        }
+        useFilesStore.getState().createFile(doc);
+        store().showToast("已匯入為新檔案");
+        return null;
       },
 
       currentJson,

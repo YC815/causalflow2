@@ -112,8 +112,12 @@ export type CausalState = {
     doc: CausalJsonDocument,
     layoutDirection?: CausalLayoutDirection,
   ) => void;
+  /** 開啟另一份文件：取代內容並清空歷史、編輯與選取；不進歷史 */
+  loadDocument: (
+    doc: CausalJsonDocument,
+    layoutDirection: CausalLayoutDirection,
+  ) => void;
   importDocument: (doc: CausalJsonDocument) => void;
-  newBlank: () => void;
   setTitle: (title: string) => void;
   setDefaultPolarity: (polarity: CausalPolarity) => void;
   addNode: (position: XYPosition, opts?: { edit?: boolean; flipped?: boolean }) => string;
@@ -218,14 +222,22 @@ export const useCausalStore = create<CausalState>()((set, get) => {
       }));
     },
 
+    loadDocument: (doc, layoutDirection) => {
+      const { nodes, edges } = documentToFlow(doc);
+      set({
+        nodes: deselectNodes(nodes),
+        edges: deselectEdges(edges),
+        title: doc.title ?? "",
+        layoutDirection,
+        history: emptyHistory<Snapshot>(),
+        editing: null,
+        editingSavedFuture: [],
+      });
+    },
+
     importDocument: (doc) => {
       commit();
       get().replaceDocument(doc);
-    },
-
-    newBlank: () => {
-      commit();
-      set({ nodes: [], edges: [], title: "", editing: null });
     },
 
     setTitle: (title) => set({ title }),

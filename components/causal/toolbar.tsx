@@ -28,7 +28,7 @@ const summaryClass =
 
 type ToolbarProps = {
   commands: CausalCommands;
-  onNewBlank: () => void;
+  onNewFile: () => void;
   onImportFile: () => void;
   onOpenJsonEditor: () => void;
   onOpenPalette?: () => void;
@@ -118,7 +118,7 @@ function TitleCard() {
 
 function ToolsPanel({
   commands,
-  onNewBlank,
+  onNewFile,
   onImportFile,
   onOpenJsonEditor,
   onOpenPalette,
@@ -205,8 +205,8 @@ function ToolsPanel({
           <button type="button" disabled={!canRedo} onClick={commands.redo} className={shellBtn} title={`${mod}+Shift+Z`}>
             重做
           </button>
-          <button type="button" onClick={onNewBlank} className={shellBtn}>
-            新空白圖
+          <button type="button" onClick={onNewFile} className={shellBtn}>
+            新檔案
           </button>
           {onOpenPalette && (
             <button type="button" onClick={onOpenPalette} className={shellBtn}>

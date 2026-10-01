@@ -29,7 +29,6 @@ import { CausalOrientationProvider } from "./causal-orientation-context";
 import { CommandPalette, type PaletteAction } from "./command-palette";
 import { JsonEditorDialog } from "./json-editor-dialog";
 import { JsonGuidePanel } from "./json-guide-panel";
-import { NewBlankDialog } from "./new-blank-dialog";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { Toolbar } from "./toolbar";
 import { modKeyLabel } from "./ui-classes";
@@ -84,7 +83,6 @@ function FlowCanvas() {
   const selectEdge = useCausalStore((s) => s.selectEdge);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [blankConfirmOpen, setBlankConfirmOpen] = useState(false);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
 
   const openPalette = useCallback(() => setPaletteOpen(true), []);
@@ -106,7 +104,7 @@ function FlowCanvas() {
       { id: "export-png", label: "匯出 PNG", run: () => void commands.exportImage("png") },
       { id: "export-pdf-p", label: "匯出 PDF（直式 A4）", run: () => void commands.exportImage("pdf", "portrait") },
       { id: "export-pdf-l", label: "匯出 PDF（橫式 A4）", run: () => void commands.exportImage("pdf", "landscape") },
-      { id: "blank", label: "新空白圖", run: () => setBlankConfirmOpen(true) },
+      { id: "new-file", label: "新檔案", run: commands.newFile },
       { id: "shortcuts", label: "快捷鍵一覽", shortcut: "?", run: openShortcuts },
     ];
   }, [commands, openShortcuts]);
@@ -139,8 +137,9 @@ function FlowCanvas() {
 
   const onFile = async (file: File | null) => {
     if (!file) return;
-    const err = commands.importText(await file.text());
-    showToast(err ?? "已匯入 JSON");
+    // 成功時 importAsNewFile 自己會 toast
+    const err = commands.importAsNewFile(await file.text());
+    if (err) showToast(err);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -254,7 +253,7 @@ function FlowCanvas() {
       <Toolbar
         commands={commands}
         onImportFile={() => fileInputRef.current?.click()}
-        onNewBlank={() => setBlankConfirmOpen(true)}
+        onNewFile={commands.newFile}
         onOpenJsonEditor={() => setJsonEditorOpen(true)}
         onOpenPalette={openPalette}
         onOpenShortcuts={openShortcuts}
@@ -279,11 +278,6 @@ function FlowCanvas() {
         actions={paletteActions}
         onFocusNode={commands.focusNode}
       />
-      <NewBlankDialog
-        open={blankConfirmOpen}
-        onOpenChange={setBlankConfirmOpen}
-        onConfirm={commands.newBlank}
-      />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       {toast && (
@@ -302,7 +296,7 @@ function FlowCanvas() {
 
 export function CausalFlowApp() {
   // 整個 app 只在 client 端渲染（causal-page-loader 使用 ssr:false），可同步讀 localStorage
-  useState(hydrateFromStorage);
+  useState(() => hydrateFromStorage());
   return (
     <ReactFlowProvider>
       <FlowCanvas />

@@ -164,6 +164,7 @@ describe("bootstrapFiles", () => {
       files: [{ id: "new1", title: "範例", updatedAt: 1000 }],
       activeId: "new1",
       migrated: false,
+      corrupt: null,
     });
     expect(s.getItem(ACTIVE_KEY)).toBe("new1");
     expect(loadIndex(s)).toEqual(r.files);
@@ -193,7 +194,12 @@ describe("bootstrapFiles", () => {
     saveIndex(s, files);
     s.setItem(ACTIVE_KEY, "old");
     const r = bootstrapFiles(s, opts);
-    expect(r).toEqual({ files, activeId: "old", migrated: false });
+    expect(r).toEqual({
+      files,
+      activeId: "old",
+      migrated: false,
+      corrupt: null,
+    });
     expect(s.data.has(fileDocKey("new1"))).toBe(false);
     expect(loadIndex(s)).toEqual(files);
   });
@@ -206,6 +212,31 @@ describe("bootstrapFiles", () => {
     ]);
     s.setItem(ACTIVE_KEY, "gone");
     expect(bootstrapFiles(s, opts).activeId).toBe("recent");
+  });
+});
+
+describe("bootstrapFiles corrupt index", () => {
+  it("backs up an unparseable index before rebuilding", () => {
+    const s = new MemoryStorage();
+    s.setItem(INDEX_KEY, "{oops");
+    const r = bootstrapFiles(s, opts);
+    expect(r.corrupt).toBe("index");
+    expect(s.getItem(`${INDEX_KEY}-corrupt`)).toBe("{oops");
+    expect(loadIndex(s)).toEqual(r.files);
+  });
+
+  it("does not overwrite an existing index backup", () => {
+    const s = new MemoryStorage();
+    s.setItem(`${INDEX_KEY}-corrupt`, "first");
+    s.setItem(INDEX_KEY, "second");
+    bootstrapFiles(s, opts);
+    expect(s.getItem(`${INDEX_KEY}-corrupt`)).toBe("first");
+  });
+
+  it("reports a corrupt legacy doc", () => {
+    const s = new MemoryStorage();
+    s.setItem(DOC_KEY, "{bad");
+    expect(bootstrapFiles(s, opts).corrupt).toBe("legacy");
   });
 });
 

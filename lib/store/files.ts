@@ -125,10 +125,28 @@ export function removeFile(storage: FileStorage, id: string): void {
   }
 }
 
+function backupCorruptIndex(storage: FileStorage): boolean {
+  try {
+    const raw = storage.getItem(INDEX_KEY);
+    if (raw === null) return false;
+    const backupKey = `${INDEX_KEY}-corrupt`;
+    if (storage.getItem(backupKey) === null) storage.setItem(backupKey, raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function bootstrapFiles(
   storage: FileStorage,
   opts: { sample: CausalJsonDocument; now: number; newId: () => string },
-): { files: FileMeta[]; activeId: string; migrated: boolean } {
+): {
+  files: FileMeta[];
+  activeId: string;
+  migrated: boolean;
+  /** index：索引損毀已備份重建；legacy：舊存檔損毀已備份 */
+  corrupt: "index" | "legacy" | null;
+} {
   const existing = loadIndex(storage);
   if (existing.length > 0) {
     let stored: string | null = null;
@@ -140,8 +158,11 @@ export function bootstrapFiles(
     const activeId = existing.some((f) => f.id === stored)
       ? (stored as string)
       : sortByRecent(existing)[0].id;
-    return { files: existing, activeId, migrated: false };
+    return { files: existing, activeId, migrated: false, corrupt: null };
   }
+
+  // 索引存在卻讀不出任何檔案：重建前先備份，避免孤兒檔案永久找不回。
+  const indexCorrupt = backupCorruptIndex(storage);
 
   // 索引為空：沿用舊單檔存檔（只讀不刪），否則用範例。
   const { doc, status } = loadStoredDocument(storage, opts.sample);
@@ -157,5 +178,10 @@ export function bootstrapFiles(
   } catch {
     /* ignore */
   }
-  return { files, activeId: id, migrated: status === "loaded" };
+  return {
+    files,
+    activeId: id,
+    migrated: status === "loaded",
+    corrupt: indexCorrupt ? "index" : status === "corrupt" ? "legacy" : null,
+  };
 }
