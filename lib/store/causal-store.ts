@@ -363,6 +363,7 @@ export const useCausalStore = create<CausalState>()((set, get) => {
     },
 
     startEditing: (id) => {
+      if (get().editing?.id === id) return;
       if (!get().nodes.some((n) => n.id === id)) return;
       const savedFuture = get().history.future;
       commit();

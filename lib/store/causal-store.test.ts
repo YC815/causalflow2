@@ -189,6 +189,16 @@ describe("causal store", () => {
     expect(s().editing).toBeNull();
   });
 
+  it("re-entrant startEditing on the node being edited is ignored", () => {
+    const id = s().addNode({ x: 0, y: 0 }, { edit: true });
+    const before = s().history.past.length;
+    s().startEditing(id);
+    expect(s().editing).toEqual({ id, isNew: true });
+    expect(s().history.past.length).toBe(before);
+    s().finishEditing(null);
+    expect(s().nodes.some((n) => n.id === id)).toBe(false);
+  });
+
   it("addNode without edit clears a previous editing state", () => {
     s().startEditing("a");
     s().addNode({ x: 0, y: 0 });
